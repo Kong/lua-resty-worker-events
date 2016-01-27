@@ -44,9 +44,9 @@ lua_shared_dict worker_events 1m;
 init_worker_by_lua '
     ngx.shared.worker_events:flush_all()
     local we = require "resty.worker.events"
-    we.register(function(source, event, data, pid) 
+    we.register(function(source, event, data, pid)
         ngx.log(ngx.DEBUG, "worker-events: ","source=",source,", event=",event, ", pid=", pid,
-                ", data=", data) 
+                ", data=", data)
             end)
     local ok, err = we.configure{
         shm = "worker_events",
@@ -119,9 +119,9 @@ lua_shared_dict worker_events 1m;
 init_worker_by_lua '
     ngx.shared.worker_events:flush_all()
     local we = require "resty.worker.events"
-    we.register(function(source, event, data, pid) 
+    we.register(function(source, event, data, pid)
         ngx.log(ngx.DEBUG, "worker-events: handler event;  ","source=",source,", event=",event, ", pid=", pid,
-                ", data=", data) 
+                ", data=", data)
             end)
     local ok, err = we.configure{
         shm = "worker_events",
@@ -188,20 +188,20 @@ lua_shared_dict worker_events 1m;
 init_worker_by_lua '
     ngx.shared.worker_events:flush_all()
     local we = require "resty.worker.events"
-    we.register(function(source, event, data, pid) 
+    we.register(function(source, event, data, pid)
         ngx.log(ngx.DEBUG, "worker-events: handler event;  ","source=",source,", event=",event, ", pid=", pid,
                 ", data=", tostring(data))
             end)
     local ok, err = we.configure{
         shm = "worker_events",
     }
-    
+
     local cjson = require("cjson.safe").new()
-    
+
     local event_id = assert(ngx.shared.worker_events:incr("events-last", 1))
     assert(ngx.shared.worker_events:add("events-data:"..tostring(event_id),
         cjson.encode({ source="hello", event="1", data="there-1", pid=123456}), 2))
-        
+
     local event_id = assert(ngx.shared.worker_events:incr("events-last", 1))
     assert(ngx.shared.worker_events:add("events-data:"..tostring(event_id),
         cjson.encode({ source="hello", event="2", data="there-2", pid=123456}), 2))
@@ -225,7 +225,7 @@ init_worker_by_lua '
             local we = require "resty.worker.events"
             we.post("content_by_lua","request1","01234567890")
             we.post_local("content_by_lua","request2","01234567890")
-            
+
             local event_id = assert(ngx.shared.worker_events:incr("events-last", 1))
             assert(ngx.shared.worker_events:add("events-data:"..tostring(event_id),
                   cjson.encode({ source="hello", event="4", data="there-4", pid=123456}), 2))
@@ -285,7 +285,7 @@ lua_shared_dict worker_events 1m;
 init_worker_by_lua '
     ngx.shared.worker_events:flush_all()
     local we = require "resty.worker.events"
-    we.register(function(source, event, data, pid) 
+    we.register(function(source, event, data, pid)
         ngx.log(ngx.DEBUG, "worker-events: handler event;  ","source=",source,", event=",event, ", pid=", pid,
                 ", data=", tostring(data))
             end)
@@ -296,7 +296,7 @@ init_worker_by_lua '
         wait_max = 0.5,
         wait_interval = 0.200,
     }
-    
+
     local cjson = require("cjson.safe").new()
 
     if not ok then
@@ -314,7 +314,7 @@ init_worker_by_lua '
             local we = require "resty.worker.events"
             we.post("content_by_lua","request1","01234567890")
             we.post("content_by_lua","request2","01234567890", true)
-            
+
             local event_id = assert(ngx.shared.worker_events:incr("events-last", 1))
 
             we.post("content_by_lua","request3","01234567890")
@@ -363,9 +363,9 @@ lua_shared_dict worker_events 1m;
 init_worker_by_lua '
     ngx.shared.worker_events:flush_all()
     local we = require "resty.worker.events"
-    we.register(function(source, event, data, pid) 
+    we.register(function(source, event, data, pid)
         ngx.log(ngx.DEBUG, "worker-events: handler event;  ","source=",source,", event=",event, ", pid=", pid,
-                ", data=", data) 
+                ", data=", data)
             end)
     local ok, err = we.configure{
         shm = "worker_events",
@@ -432,9 +432,9 @@ lua_shared_dict worker_events 1m;
 init_worker_by_lua '
     ngx.shared.worker_events:flush_all()
     local we = require "resty.worker.events"
-    we.register(function(source, event, data, pid) 
+    we.register(function(source, event, data, pid)
         ngx.log(ngx.DEBUG, "worker-events: handler event;  ","source=",source,", event=",event, ", pid=", pid,
-                ", data=", data) 
+                ", data=", data)
             end)
     local ok, err = we.configure{
         shm = "worker_events",
