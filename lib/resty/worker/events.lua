@@ -1,4 +1,4 @@
---[[== START ============= temporary debug code ============================]]--
+---[[== START ============= temporary debug code ==============================--
 -- with Lua 5.1 patch global xpcall to take function args (standard in 5.2+)
 if _VERSION=="Lua 5.1" then
   local xp = xpcall
@@ -17,7 +17,7 @@ end
 pcall = function(fn, ...)
   return xpcall(fn, ehandler, ...)
 end
---[[== END =============== temporary debug code ============================]]--
+--==== END =============== temporary debug code ============================]]--
 
 local log = ngx.log
 local ERR = ngx.ERR
@@ -38,8 +38,10 @@ local max = math.max
 local sleep = ngx.sleep
 
 -- event keys to shm
-local KEY_LAST_ID = "events-last"       -- ID of last event posted
-local KEY_DATA    = "events-data:"       -- serialized event json data
+local KEY_LAST_ID = "events-last"         -- ID of last event posted
+local KEY_DATA    = "events-data:"        -- serialized event json data
+local KEY_ONE     = "events-one:"         -- key for 'one' events check
+
 -- other constants
 local MODULE_NAME = "resty-worker-events" -- eventsource for own events
 local EVENT_START = "started"             -- event when started
@@ -108,7 +110,7 @@ local function get_event_data(event_id)
 end
 
 -- posts a new event in shm
-local function post_event(source, event, data)
+local function post_event(source, event, data, one)
     local json, err, event_id, success
 
     _dict:add(KEY_LAST_ID, 0)
@@ -119,6 +121,7 @@ local function post_event(source, event, data)
             source = source, 
             event = event, 
             data = data,
+            one = one,
             pid = _pid,
         })
     if not json then return json, err end
@@ -129,44 +132,95 @@ local function post_event(source, event, data)
     return event_id
 end
 
--- posts a new event.
--- @param source string identifying the event source
--- @param 
-_M.post = function(source, event, data)
-    if type(source) ~= "string" or source == "" then
-        return nil, "source is required"
-    end
-    if type(source) ~= "event" or source == "" then
-        return nil, "event is required"
-    end
+local function do_event(source, event, data, pid)
+    local err, success
     
-    local success, err = post_event(source, event, data)
-    if not success then
-        errlog('failed posting event "',event,'" by "',source,'"')
-    end
-    
-    return success, err
-end
-
--- Handle incoming event, call the event handlers
-local function do_event(json)
-    local d, err, success
-    d, err = cjson.decode(json)
-    if not d then
-        return errlog("failed decoding json event data: ", err)
-    end
-    
-    local source, event, data, pid = d.source, d.event, d.data, d.pid
+    debug("handling event; source=",source,
+           ", event=",event,", pid=",pid,", data=",tostring(data))
     
     for _, handler in ipairs(_callbacks) do
         success, err = pcall(handler, source, event, data, pid)
         if not success then
             errlog("event callback failed; source=",source,
-                   ", event=",event,", pid=",pid)
+                   ", event=",event,", pid=",pid, " error='", tostring(err),
+                   "', data="..cjson.encode(data))
         end
     end
 end
+
+
+-- for 'one' events, returns `true` when this worker is supposed to handle it
+local function mine_to_have(id)
+    local key = KEY_ONE .. tostring(id)
+    local success, err = _dict:add(key, _pid, _timeout)
+
+    if success then return true end
+    
+    if err == "exists"  then
+        debug("skipping event ",id," was handled by worker ", 
+              _dict:get(key))
+    else
+        errlog("cannot determine who handles event ",id,", dropping it: ",err)
+    end
+end
+
+-- Handle incoming json based event
+local function do_event_json(id, json)
+    local d, err
+    d, err = cjson.decode(json)
+    if not d then
+        return errlog("failed decoding json event data: ", err)
+    end
+    
+    if d.one and not mine_to_have(id) then return end
+    
+    return do_event(d.source, d.event, d.data, d.pid)
+end
   
+-- Posts a new event. Also immediately handles all events up to and including 
+-- the newly posted event.
+-- @param source string identifying the event source
+-- @param event string identifying the event name
+-- @param data the data for the event, anything as long as it can be used with cjson
+-- @return event id on success, or nil + error message
+_M.post = function(source, event, data, one)
+    one = one and true
+    if type(source) ~= "string" or source == "" then
+        return nil, "source is required"
+    end
+    if type(event) ~= "string" or source == "" then
+        return nil, "event is required"
+    end
+    
+    if no_broadcast then 
+        do_event(source, event, data, nil)
+    else
+      local success, err = post_event(source, event, data, one)
+      if not success then
+          err = 'failed posting event "'..event..'" by "'..source..'"'
+          errlog(err)
+          return success, err
+      end
+    end
+      
+    return _M.poll()
+end
+
+-- the same as post. But the event will only be handled in the worker
+-- it was posted from, it will not be broadcasted to other worker processes.
+_M.post_local = function(source, event, data)
+    if type(source) ~= "string" or source == "" then
+        return nil, "source is required"
+    end
+    if type(event) ~= "string" or source == "" then
+        return nil, "event is required"
+    end
+    
+    do_event(source, event, data, nil)
+      
+    return _M.poll()
+end
+
 -- poll for events and execute handlers
 -- @return true or nil+error
 _M.poll = function()
@@ -202,19 +256,23 @@ _M.poll = function()
                 break
             else
                 -- just nil, so must wait for data to appear
-                local wait = min(expire, now() + _wait_interval) - now()
-                if wait < 0 then 
-                    errlog("waiting for event data timed out, id: ",
-                            _last_event - count + idx)
+                --local wait = min(expire, now() + _wait_interval) - now()
+                --if wait < 0 then 
+                if now() >= expire then
                     break 
                 end
                 -- wait and retry
-                sleep(max(0, min(expire, now() + _wait_interval) - now()))
+                sleep(_wait_interval)--max(0, min(expire, now() + _wait_interval) - now()))
                 data, err = get_event_data(_last_event - count + idx)
             end
         end
         
-        do_event(data)
+       if data then 
+            do_event_json(_last_event - count + idx, data)
+        else
+            warn("dropping event; waiting for event data timed out, id: ",
+                 _last_event - count + idx)
+        end
     end
     
     -- in case we waited, recurse to handle any new pending events
@@ -226,14 +284,17 @@ local do_timer
 do_timer = function(premature)
     local ok, err
     if premature then
-        _M.post(MODULE_NAME, EVENT_EXIT, { pid = _pid })
+        _M.post(MODULE_NAME, EVENT_EXIT)
     end
     
     _M.poll()
     
     if _interval ~= 0 and not premature then
-        ok, err = new_timer(0, do_timer)
+        ok, err = new_timer(_interval, do_timer)
         if not ok then
+            if err == "process exiting" then
+                _M.post(MODULE_NAME, EVENT_EXIT)
+            end
             err = "failed to create timer: " .. tostring(err)
             errlog(err)
             return nil, err
@@ -273,14 +334,14 @@ end
 
 -- (re) configures the event system
 -- shm     : name of the shared memory to use
--- timeout : timeout of event data stored in shm (in seconds), default 2
--- interval: interval to poll for events (in seconds), default 1
+-- timeout : timeout of event data stored in shm (in seconds)
+-- interval: interval to poll for events (in seconds)
 -- wait_interval : interval between two tries when an eventid is found, but no data
 -- wait_max: max time to wait for data when event id is found, before discarding
 _M.configure = function(opts)
     assert(type(opts) == "table", "Expected a table, got "..type(opts))
     
-    local started = _dict == nil
+    local started = _dict ~= nil
     
     if get_pid() ~= _pid then
         -- pid changed, so new process was forked, must reset
@@ -345,18 +406,22 @@ _M.configure = function(opts)
     _dict = dict
     _timeout = timeout
     _wait_interval = wait_interval
+    _wait_max = wait_max
     _dict:add(KEY_LAST_ID, 0)  -- make sure the key exists
+
+    _last_event = _last_event or get_event_id() or 0
+    
+    if not started then
+        -- we're live, let's celebrate it with an event
+        local id, err = _M.post(MODULE_NAME, EVENT_START)
+        if not id then return id, err end
+    end
 
     if not old_interval then
         -- haven't got a timer setup yet, must create one
         local success, err = do_timer()
         if not success then return success, err end
-    end
-    
-    if not started then
-        -- we're live, let's celebrate it with an event
-        _M.post(MODULE_NAME, EVENT_START, { pid = _pid })
-        _last_event = get_event_id() - 1  -- less 1 to make sure we get our own event
+    else
         _M.poll()
     end
     

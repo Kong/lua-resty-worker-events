@@ -41,7 +41,7 @@ http {
     }
 
     # the size depends on the number of event to handle:
-    lua_shared_dict process_event 1m;
+    lua_shared_dict process_events 1m;
 
     init_worker_by_lua_block {
         local ev = require "resty.worker.events"
@@ -49,26 +49,25 @@ http {
         local handler = function(source, event, data, pid)
             -- data will be transferred using the cjson library, and hence
             -- must be serializable to json.
-            print("received event; source=",source,", event=",event,", data=",
-                  tostring(data),", from process ",pid)
+            print("received event; source=",source,
+                  ", event=",event,
+                  ", data=", tostring(data),
+                  ", from process ",pid)
         end
         ev.register(handler)
         
         local ok, err = ev.configure {
-            shm = "process_event", -- defined by "lua_shared_dict"
-            timeout = 2,           -- life time of event data in shm
-            interval = 1,          -- poll interval (seconds)
+            shm = "process_events", -- defined by "lua_shared_dict"
+            timeout = 2,            -- life time of event data in shm
+            interval = 1,           -- poll interval (seconds)
 
-            wait_interval = 0.010, -- wait before retry fetching event data
-            wait_max = 0.5,        -- max wait time before discarding event
+            wait_interval = 0.010,  -- wait before retry fetching event data
+            wait_max = 0.5,         -- max wait time before discarding event
         }
         if not ok then
             ngx.log(ngx.ERR, "failed to start event system: ", err)
             return
         end
-
-        -- Just call ev.configure() repeatedly if you want
-        -- to change the settings (except for shm, which cannot be changed)
     }
 
     server {
@@ -103,12 +102,13 @@ server. Communication is through a shared memory zone where event data will be s
 The order of events in all workers is __guaranteed__ to be the same.
 
 The workerprocess will setup a timer to check for events in the background. If staying
-up-to-date is important though the interval can be set higher and a call to [poll](#poll)
-upon each request received makes sure everything is handled as soon as possible.
+up-to-date is important though, the interval can be set to a lesser frequency and a 
+call to [poll](#poll) upon each request received makes sure everything is handled 
+as soon as possible.
 
 This module itself will fire two events with `source="resty-worker-events"`;
  * `event="started"` when the module is first configured (note: the event handler must be 
-   [registered](register) before calling [configure](#configure)
+   [registered](#register) before calling [configure](#configure)
  * `event="stopping"` when the worker process exits (based on a timer `premature` setting)
 
 
@@ -123,15 +123,15 @@ configure
 
 Will initialize the event listener. The `opts` parameter is a Lua table with named options
 
-* `shm`: name of the shared memory to use
-* `timeout`: timeout of event data stored in shm (in seconds), default 2
-* `interval`: interval to poll for events (in seconds), default 1
-* `wait_interval`: interval between two tries when a new eventid is found, but the data is not 
-  available yet (due to asynchronous behaviour of the worker processes)
-* `wait_max`: max time to wait for data when event id is found, before discarding the event. This
-  is a fail-safe setting in case something went wrong.
+* `shm`: (required) name of the shared memory to use
+* `timeout`: (optional) timeout of event data stored in shm (in seconds), default 2
+* `interval`: (optional) interval to poll for events (in seconds), default 1
+* `wait_interval`: (optional) interval between two tries when a new eventid is found, but the 
+  data is not available yet (due to asynchronous behaviour of the worker processes)
+* `wait_max`: (optional) max time to wait for data when event id is found, before discarding 
+  the event. This is a fail-safe setting in case something went wrong.
   
-The return value will be `true` or `nil` and an error message.
+The return value will be `true`, or `nil` and an error message.
 
 This method can be called repeatedly to update the settings, except for the `shm` value which
 cannot be changed after the initial configuration.
@@ -146,22 +146,41 @@ Will poll for new events and handle them all (call the registered callbacks). Th
 efficient, it will only check a single shared memory value and return immediately if no new events 
 are available.
   
-The return value will be `true` or `nil` and an error message.
+The return value will be `true`, or `nil` and an error message.
 
 [Back to TOC](#table-of-contents)
 
 post
 ----
-`syntax: success, err = events.post(source, event, data)`
+`syntax: success, err = events.post(source, event, data, one)`
 
 Will post a new event. `source` and `event` are both strings. `data` can be anything (including `nil`)
 as long as it is (de)serializable by the cjson module.
+The `one` parameter is a boolean, if `true` the event mechanism will make sure that only 1 worker
+process will execute the event (not necessarily the process posting the event). 
 
-The return value will be `true` or `nil` and an error message.
+Before returning, it will call [poll](#poll) to handle all events up to and including the newly posted 
+event.
+
+The return value will be `true`, or `nil` and an error message.
 
 *Note*: the worker process sending the event, will also receive the event! So to make sure 
-the order of processing the events is the same in all processes, do not handle the event
+the order of processing events is the same in all processes, do not handle the event
 when posting it, but only when receiving it.
+
+[Back to TOC](#table-of-contents)
+
+post_local
+----------
+`syntax: success, err = events.post_local(source, event, data)`
+
+The same as [post](#post) except that the event will be local to the worker process, it will not 
+be broadcasted to other workers. With this method, the `data` element will not be jsonified.
+
+Before returning, it will call [poll](#poll) to first handle the posted event and then handle all 
+other newly posted events.
+
+The return value will be `true`, or `nil` and an error message.
 
 [Back to TOC](#table-of-contents)
 
@@ -173,9 +192,14 @@ Will register a callback function to receive events. The callback should have th
 
 `syntax: callback = function(source, event, data, pid)`
 
-The parameters will be the same as the ones provided to [post](#post), except for the extra value `pid` which will be the pid of the originating worker process.
+The parameters will be the same as the ones provided to [post](#post), except for the extra value 
+`pid` which will be the pid of the originating worker process, or `nil` if it was a local event 
+only. Any return value from `callback` will be discarded.
+*Note:* `data` may be a reference type of data (eg. a Lua `table`  type). The same value is passed
+to all callbacks, so do not change the value in your handler, unless you know what you are doing!
 
-The return value will be `true` or it will throw an error if `callback` is not a function value.
+The return value of `register` will be `true`, or it will throw an error if `callback` is not a 
+function value.
 
 *Note*: to receive the process own `started` event, the handler must be registered before
 calling [configure](#configure)
@@ -206,6 +230,8 @@ TODO
 ====
 
 [Back to TOC](#table-of-contents)
+
+* implement tests / testing
 
 Community
 =========
@@ -248,7 +274,7 @@ Copyright and License
 
 This module is licensed under the BSD license.
 
-Copyright (C) 2014, by Thijs Schreijer, Mashape Inc.
+Copyright (C) 2016, by Thijs Schreijer, Mashape Inc.
 
 All rights reserved.
 
