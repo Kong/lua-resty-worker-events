@@ -1,4 +1,4 @@
----[[== START ============= temporary debug code ==============================--
+--[[== START ============= temporary debug code ==============================--
 -- with Lua 5.1 patch global xpcall to take function args (standard in 5.2+)
 if _VERSION=="Lua 5.1" then
   local xp = xpcall
@@ -41,14 +41,14 @@ local KEY_DATA    = "events-data:"        -- serialized event json data
 local KEY_ONE     = "events-one:"         -- key for 'one' events check
 
 -- globals as upvalues (module is intended to run once per worker process)
-local _dict         -- the shared dictionary to use
-local _timeout      -- expire time for event data posted in shm (seconds)
-local _interval     -- polling interval (in seconds)
+local _dict          -- the shared dictionary to use
+local _timeout       -- expire time for event data posted in shm (seconds)
+local _interval      -- polling interval (in seconds)
 local _pid = get_pid()
-local _callbacks    -- list of event handlers to call with new events
-local _last_event   -- event id of the last event handled
-local _wait_max     -- how long (in seconds) to wait when we have an event id,
-                    -- but no data, for the data to show up.
+local _callbacks     -- list of event handlers to call with new events
+local _last_event    -- event id of the last event handled
+local _wait_max      -- how long (in seconds) to wait when we have an event id,
+                     -- but no data, for the data to show up.
 local _wait_interval -- interval between tries when event data is unavailable
 
 -- defaults
@@ -255,13 +255,11 @@ _M.poll = function()
                 break
             else
                 -- just nil, so must wait for data to appear
-                --local wait = min(expire, now() + _wait_interval) - now()
-                --if wait < 0 then
                 if now() >= expire then
                     break
                 end
                 -- wait and retry
-                sleep(_wait_interval)--max(0, min(expire, now() + _wait_interval) - now()))
+                sleep(_wait_interval)
                 data, err = get_event_data(_last_event - count + idx)
             end
         end

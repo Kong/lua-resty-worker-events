@@ -20,12 +20,13 @@ _EOC_
 
 #no_diff();
 no_long_string();
+master_on();
 run_tests();
 
 __DATA__
 
 === TEST 1: worker.events starting and stopping, with its own events
---- SKIP
+--- ONLY
 --- http_config eval
 "$::HttpConfig"
 . q{
@@ -45,7 +46,7 @@ init_worker_by_lua '
     ngx.shared.worker_events:flush_all()
     local we = require "resty.worker.events"
     we.register(function(source, event, data, pid)
-        ngx.log(ngx.DEBUG, "worker-events: ","source=",source,", event=",event, ", pid=", pid,
+        ngx.log(ngx.DEBUG, "worker-events: handler event;  ","source=",source,", event=",event, ", pid=", pid,
                 ", data=", data)
             end)
     local ok, err = we.configure{
@@ -61,9 +62,7 @@ init_worker_by_lua '
     location = /t {
         access_log off;
         content_by_lua '
-            ngx.sleep(2)
-
-            local we = require "resty.worker.events"
+            ngx.sleep(1)
             ngx.print("hello world\\n")
 
         ';
@@ -73,30 +72,20 @@ init_worker_by_lua '
 GET /t
 
 --- response_body
-Upstream foo.com
-    Primary Peers
-        127.0.0.1:12354 up
-        127.0.0.1:12355 up
-    Backup Peers
-        127.0.0.1:12356 up
-upstream addr: 127.0.0.1:12354
-upstream addr: 127.0.0.1:12355
-
+hello world
 --- no_error_log
 [error]
 [alert]
 [warn]
 dropping event: waiting for event data timed out
---- grep_error_log eval: qr/healthcheck: .*? was checked .*|publishing peers version \d+|upgrading peers version to \d+/
+--- grep_error_log eval: qr/worker-events: .*|signal 3 .*|gracefully .*/
 --- grep_error_log_out eval
-qr/^healthcheck: peer 127\.0\.0\.1:12354 was checked to be ok
-healthcheck: peer 127\.0\.0\.1:12355 was checked to be ok
-healthcheck: peer 127\.0\.0\.1:12356 was checked to be ok
-publishing peers version 1
-(?:healthcheck: peer 127\.0\.0\.1:12354 was checked to be ok
-healthcheck: peer 127\.0\.0\.1:12355 was checked to be ok
-healthcheck: peer 127\.0\.0\.1:12356 was checked to be ok
-){3,5}$/
+qr/^worker-events: handling event; source=resty-worker-events, event=started, pid=\d+, data=nil
+worker-events: handler event;  source=resty-worker-events, event=started, pid=\d+, data=nil
+signal 3 (SIGQUIT) received, shutting down
+gracefully shutting down
+worker-events: handling event; source=resty-worker-events, event=stopping, pid=\d+, data=nil
+worker-events: handler event;  source=resty-worker-events, event=stopping, pid=\d+, data=nil$/
 --- timeout: 6
 
 
@@ -136,7 +125,7 @@ init_worker_by_lua '
     location = /t {
         access_log off;
         content_by_lua '
-            ngx.sleep(2)
+            ngx.sleep(1)
             local we = require "resty.worker.events"
             we.post("content_by_lua","request1","01234567890")
             we.post_local("content_by_lua","request2","01234567890")
@@ -221,7 +210,7 @@ init_worker_by_lua '
         access_log off;
         content_by_lua '
             local cjson = require("cjson.safe").new()
-            ngx.sleep(2)
+            ngx.sleep(1)
             local we = require "resty.worker.events"
             we.post("content_by_lua","request1","01234567890")
             we.post_local("content_by_lua","request2","01234567890")
@@ -310,7 +299,7 @@ init_worker_by_lua '
         access_log off;
         content_by_lua '
             local cjson = require("cjson.safe").new()
-            ngx.sleep(2)
+            ngx.sleep(1)
             local we = require "resty.worker.events"
             we.post("content_by_lua","request1","01234567890")
             we.post("content_by_lua","request2","01234567890", true)
@@ -380,7 +369,7 @@ init_worker_by_lua '
     location = /t {
         access_log off;
         content_by_lua '
-            ngx.sleep(2)
+            ngx.sleep(1)
             local we = require "resty.worker.events"
             we.post("content_by_lua","request1","01234567890")
             we.post("content_by_lua","request2","01234567890", true)
@@ -449,7 +438,7 @@ init_worker_by_lua '
     location = /t {
         access_log off;
         content_by_lua '
-            ngx.sleep(2)
+            ngx.sleep(1)
             local we = require "resty.worker.events"
             we.post("content_by_lua","request1","01234567890")
             assert(ngx.shared.worker_events:add("events-one:3", 666))
