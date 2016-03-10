@@ -26,7 +26,6 @@ run_tests();
 __DATA__
 
 === TEST 1: worker.events starting and stopping, with its own events
---- ONLY
 --- http_config eval
 "$::HttpConfig"
 . q{
@@ -333,7 +332,7 @@ worker-events: handling event; source=content_by_lua, event=request3, pid=\d+, d
 worker-events: handler event;  source=content_by_lua, event=request3, pid=\d+, data=01234567890$/
 --- timeout: 6
 
-=== TEST 5: worker.events 'one' being done
+=== TEST 5: worker.events 'one' being done, and only once
 --- http_config eval
 "$::HttpConfig"
 . q{
@@ -372,8 +371,9 @@ init_worker_by_lua '
             ngx.sleep(1)
             local we = require "resty.worker.events"
             we.post("content_by_lua","request1","01234567890")
-            we.post("content_by_lua","request2","01234567890", true)
-            we.post("content_by_lua","request3","01234567890")
+            we.post("content_by_lua","request2","01234567890", "unique_value")
+            we.post("content_by_lua","request3","01234567890", "unique_value")
+            we.post("content_by_lua","request4","01234567890")
             ngx.print("hello world\\n")
 
         ';
@@ -397,12 +397,12 @@ worker-events: handling event; source=content_by_lua, event=request1, pid=\d+, d
 worker-events: handler event;  source=content_by_lua, event=request1, pid=\d+, data=01234567890
 worker-events: handling event; source=content_by_lua, event=request2, pid=\d+, data=01234567890
 worker-events: handler event;  source=content_by_lua, event=request2, pid=\d+, data=01234567890
-worker-events: handling event; source=content_by_lua, event=request3, pid=\d+, data=01234567890
-worker-events: handler event;  source=content_by_lua, event=request3, pid=\d+, data=01234567890$/
+worker-events: handling event; source=content_by_lua, event=request4, pid=\d+, data=01234567890
+worker-events: handler event;  source=content_by_lua, event=request4, pid=\d+, data=01234567890$/
 --- timeout: 6
 
 
-=== TEST 6: worker.events 'one' being done by another worker
+=== TEST 6: worker.events 'unique' being done by another worker
 --- http_config eval
 "$::HttpConfig"
 . q{
@@ -441,8 +441,8 @@ init_worker_by_lua '
             ngx.sleep(1)
             local we = require "resty.worker.events"
             we.post("content_by_lua","request1","01234567890")
-            assert(ngx.shared.worker_events:add("events-one:3", 666))
-            we.post("content_by_lua","request2","01234567890", true)
+            assert(ngx.shared.worker_events:add("events-one:unique_value", 666))
+            we.post("content_by_lua","request2","01234567890", "unique_value")
             we.post("content_by_lua","request3","01234567890")
             ngx.print("hello world\\n")
         ';

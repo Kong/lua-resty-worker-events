@@ -45,7 +45,7 @@ local _dict          -- the shared dictionary to use
 local _timeout       -- expire time for event data posted in shm (seconds)
 local _interval      -- polling interval (in seconds)
 local _pid = get_pid()
-local _callbacks     -- list of event handlers to call with new events
+local _callbacks = {}-- list of event handlers to call with new events
 local _last_event    -- event id of the last event handled
 local _wait_max      -- how long (in seconds) to wait when we have an event id,
                      -- but no data, for the data to show up.
@@ -59,16 +59,6 @@ local DEFAULT_WAIT_INTERVAL = 0.010
 
 local _M = {
     _VERSION = '0.01',
-
-    events = setmetatable({
-        source = "resty-worker-events",   -- event source for own events
-        started = "started",              -- event when started
-        stopping = "stopping",            -- event for stopping
-    }, {
-        __index = function(self, key)
-          error("event '"..tostring(key).."' is an unknown event", 2)
-        end
-    })
 }
 
 if not ngx.config
@@ -113,7 +103,7 @@ local function get_event_data(event_id)
 end
 
 -- posts a new event in shm
-local function post_event(source, event, data, one)
+local function post_event(source, event, data, unique)
     local json, err, event_id, success
 
     _dict:add(KEY_LAST_ID, 0)
@@ -124,7 +114,7 @@ local function post_event(source, event, data, one)
             source = source,
             event = event,
             data = data,
-            one = one,
+            unique = unique,
             pid = _pid,
         })
     if not json then return json, err end
@@ -153,8 +143,8 @@ end
 
 
 -- for 'one' events, returns `true` when this worker is supposed to handle it
-local function mine_to_have(id)
-    local key = KEY_ONE .. tostring(id)
+local function mine_to_have(id, unique)
+    local key = KEY_ONE .. tostring(unique)
     local success, err = _dict:add(key, _pid, _timeout)
 
     if success then return true end
@@ -175,7 +165,7 @@ local function do_event_json(id, json)
         return errlog("failed decoding json event data: ", err)
     end
 
-    if d.one and not mine_to_have(id) then return end
+    if d.unique and not mine_to_have(id, d.unique) then return end
 
     return do_event(d.source, d.event, d.data, d.pid)
 end
@@ -185,9 +175,11 @@ end
 -- @param source string identifying the event source
 -- @param event string identifying the event name
 -- @param data the data for the event, anything as long as it can be used with cjson
+-- @param unique a unique identifier for this event, providing it will make only 1
+-- worker execute the event
 -- @return event id on success, or nil + error message
-_M.post = function(source, event, data, one)
-    one = one and true
+_M.post = function(source, event, data, unique)
+    
     if type(source) ~= "string" or source == "" then
         return nil, "source is required"
     end
@@ -195,7 +187,7 @@ _M.post = function(source, event, data, one)
         return nil, "event is required"
     end
 
-    local success, err = post_event(source, event, data, one)
+    local success, err = post_event(source, event, data, unique)
     if not success then
         err = 'failed posting event "'..event..'" by "'..source..'"'
         errlog(err)
@@ -281,7 +273,7 @@ local do_timer
 do_timer = function(premature)
     local ok, err
     if premature then
-        _M.post(_M.events.source, _M.events.stopping)
+        _M.post(_M.events._source, _M.events.stopping)
     end
 
     _M.poll()
@@ -290,7 +282,7 @@ do_timer = function(premature)
         ok, err = new_timer(_interval, do_timer)
         if not ok then
             if err == "process exiting" then
-                _M.post(_M.events.source, _M.events.stopping)
+                _M.post(_M.events._source, _M.events.stopping)
             end
             err = "failed to create timer: " .. tostring(err)
             errlog(err)
@@ -410,7 +402,7 @@ _M.configure = function(opts)
 
     if not started then
         -- we're live, let's celebrate it with an event
-        local id, err = _M.post(_M.events.source, _M.events.started)
+        local id, err = _M.post(_M.events._source, _M.events.started)
         if not id then return id, err end
     end
 
@@ -424,5 +416,35 @@ _M.configure = function(opts)
 
     return true
 end
+
+-- Check whether the event module has already been configured
+-- @return `true`  if configured and ready to accept events, or `false` if not
+_M.configured = function()
+    return (_dict ~= nil)
+end
+
+-- Utility function to generate event lists and prevent typos in
+-- magic strings. Accessing a non-existing event on the table will result in 
+-- an unknown event error.
+-- @param source string with the event source name
+-- @param ... vararg, strings, with all events available
+-- @return events table where key `_source` contains the event source name and all
+-- other eventnames are in the hashtable by their own name.
+_M.event_list = function(source, ...)
+    local events = { _source = source }
+    for _, event in pairs({...}) do
+        events[event] = event
+    end
+    return setmetatable(events, {
+        __index = function(self, key)
+          error("event '"..tostring(key).."' is an unknown event", 2)
+        end
+    })
+end
+
+_M.events = _M.event_list(
+    "resty-worker-events",      -- event source for own events
+    "started",                  -- event when started
+    "stopping")                 -- event when stopping
 
 return _M
