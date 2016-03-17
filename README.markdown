@@ -101,7 +101,7 @@ as soon as possible.
 The design allows for 3 usecases;
 
 1. broadcast an event to all workers processes, see [post](#post). In this case
-the order of the events is guranteed to be the same in all worker processes. Example; 
+the order of the events is guaranteed to be the same in all worker processes. Example; 
 a healthcheck running in one worker, but informing all workers of a failed
 upstream node.
 2. broadcast an event to the local worker only, see [post_local](#post_local).
@@ -208,23 +208,22 @@ return _M
 
 
 -- Event client example;
+local mymod = require("some_module")  -- module with an `events` table
 
 -- define a callback and use source modules events table
 local my_callback = function(data, event, source, pid)
-    if source == ev.events._source then
-        if event == ev.events.started then  -- 'started' is the event name
+    if event == mymod.events.started then  -- 'started' is the event name
 
-            -- started event from the resty-worker-events module
+        -- started event from the resty-worker-events module
 
-        elseif event == ev.events.stoppping then  -- 'stopping' is the event name
+    elseif event == mymod.events.stoppping then  -- 'stopping' is the event name
 
-            -- the above will throw an error because of the typo in `stoppping` 
+        -- the above will throw an error because of the typo in `stoppping` 
 
-        end
     end
 end
 
-ev.register(my_callback)
+ev.register(my_callback, mymod.events._source) 
 
 ```
 
