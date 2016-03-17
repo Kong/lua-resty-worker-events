@@ -34,6 +34,8 @@ local cjson = require("cjson.safe").new()
 local get_pid = ngx.worker.pid
 local now = ngx.now
 local sleep = ngx.sleep
+local tinsert = table.insert
+local tremove = table.remove
 
 -- event keys to shm
 local KEY_LAST_ID = "events-last"         -- ID of last event posted
@@ -45,7 +47,6 @@ local _dict          -- the shared dictionary to use
 local _timeout       -- expire time for event data posted in shm (seconds)
 local _interval      -- polling interval (in seconds)
 local _pid = get_pid()
-local _callbacks = {}-- list of event handlers to call with new events
 local _last_event    -- event id of the last event handled
 local _wait_max      -- how long (in seconds) to wait when we have an event id,
                      -- but no data, for the data to show up.
@@ -56,6 +57,35 @@ local DEFAULT_TIMEOUT = 2
 local DEFAULT_INTERVAL = 1
 local DEFAULT_WAIT_MAX = 0.5
 local DEFAULT_WAIT_INTERVAL = 0.010
+
+-- metatable that auto creates sub tables if a key is not found
+-- __index function to do the auto table magic
+local autotable__index = function(self, key)
+  local mt = getmetatable(self)
+  local t = {}
+  if mt.depth ~= 1 then
+    setmetatable(t, { __index = mt.__index, depth = mt.depth - 1})
+  end
+  self[key] = t
+  return t
+end
+
+--- Creates a new auto-table. 
+-- @param depth (optional, default 1) how deep to auto-generate tables. The last
+-- table in the chain generated will itself not be an auto-table. If `depth == 0` then
+-- there is no limit.
+-- @return new auto-table
+function autotable(depth)
+  return setmetatable({}, {__index = autotable__index, depth = depth })
+end
+
+-- callbacks
+local _callbacks = autotable(2)
+-- _callbacks; array = global handlers called on every event
+-- _callbacks; hash  = subtables for a specific eventsource
+-- eventsource-sub-table has the same structure, except the hash part contains 
+-- not 'eventsource', but 'event' specific handlers, no more sub tables
+
 
 local _M = {
     _VERSION = '0.01',
@@ -80,7 +110,7 @@ local function errlog(...)
     log(ERR, "worker-events: ", ...)
 end
 
-local debug = function() end
+--local debug = function() end
 if debug_mode then
     debug = function(...)
         -- print("debug mode: ", debug_mode)
@@ -125,20 +155,31 @@ local function post_event(source, event, data, unique)
     return event_id
 end
 
-local function do_event(source, event, data, pid)
+local function do_handlerlist(list, source, event, data, pid)
     local err, success
 
-    debug("handling event; source=",source,
-           ", event=",event,", pid=",pid,", data=",tostring(data))
-
-    for _, handler in ipairs(_callbacks) do
-        success, err = pcall(handler, source, event, data, pid)
+    for _, handler in ipairs(list) do
+        success, err = pcall(handler, data, event, source, pid)
         if not success then
             errlog("event callback failed; source=",source,
                    ", event=",event,", pid=",pid, " error='", tostring(err),
                    "', data="..cjson.encode(data))
         end
     end
+end
+
+local function do_event(source, event, data, pid)
+    local list
+
+    debug("handling event; source=",source,
+           ", event=",event,", pid=",pid,", data=",tostring(data))
+
+    list = _callbacks
+    do_handlerlist(list, source, event, data, pid)
+    list = list[source]
+    do_handlerlist(list, source, event, data, pid)
+    list = list[event]
+    do_handlerlist(list, source, event, data, pid)
 end
 
 
@@ -295,30 +336,78 @@ end
 -- registers an event handler callback.
 -- signature; callback(source, event, data, originating_pid)
 -- @param callback the eventhandler callback to add
+-- @param source (optional) if given only this source is being called for
+-- @param ... (optional) event names (0 or more) to register for
 -- @return true
-_M.register = function(callback)
+_M.register = function(callback, source, ...)
     assert(type(callback) == "function", "expected function, got: "..
            type(callback))
-    _callbacks = _callbacks or {}
-    local idx = #_callbacks + 1
-    _callbacks[idx] = callback
-    _callbacks[callback] = idx
+
+    if not source then
+        -- register as global event handler
+        tinsert(_callbacks, callback)
+debug("### global registered: ", #_callbacks)        
+    else
+        local events = {...}
+        if #events == 0 then
+            -- register as an eventsource handler
+            tinsert(_callbacks[source], callback)
+debug("### source only registered (", source, "): ", #_callbacks[source])
+        else
+            -- register as an event specific handler, for multiple events
+            for _, event in ipairs(events) do
+                tinsert(_callbacks[source][event], callback)
+debug("### event only registered (", source,"-",event, "): ", #_callbacks[source][event])
+            end
+        end
+    end
     return true
 end
 
 
 -- unregisters an event handler callback.
 -- @param callback the eventhandler callback to remove
--- @return true if it was removed, false if it was not in the list
-_M.unregister = function(callback)
+-- @return `true` if it was removed, `false` if it was not in the list. If multiple
+-- eventnames have been specified, `true` means at least 1 occurence was removed
+_M.unregister = function(callback, source, ...)
     assert(type(callback) == "function", "expected function, got: "..
            type(callback))
-    local idx = _callbacks[callback]
-    if idx then
-        _callbacks[callback] = nil
-        _callbacks[idx] = nil
+         
+    local success
+    if not source then
+        -- remove as global event handler
+        for i, cb in ipairs(_callbacks) do
+            if cb == callback then
+                tremove(_callbacks, i)
+                success = true
+            end
+        end
+    else
+        local events = {...}
+        if not next(events) then
+            -- remove as an eventsource handler
+            local target = _callbacks[source]
+            for i, cb in ipairs(target) do
+                if cb == callback then
+                    tremove(target, i)
+                    success = true
+                end
+            end
+        else
+            -- remove as an event specific handler, for multiple events
+            for _, event in ipairs(events) do
+                local target = _callbacks[source][event]
+                for i, cb in ipairs(target) do
+                    if cb == callback then
+                        tremove(target, i)
+                        success = true
+                    end
+                end
+            end
+        end
     end
-    return idx ~= nil
+    
+    return (success == true)
 end
 
 -- (re) configures the event system

@@ -44,7 +44,7 @@ lua_shared_dict worker_events 1m;
 init_worker_by_lua '
     ngx.shared.worker_events:flush_all()
     local we = require "resty.worker.events"
-    we.register(function(source, event, data, pid)
+    we.register(function(data, event, source, pid)
         ngx.log(ngx.DEBUG, "worker-events: handler event;  ","source=",source,", event=",event, ", pid=", pid,
                 ", data=", data)
             end)
@@ -107,7 +107,7 @@ lua_shared_dict worker_events 1m;
 init_worker_by_lua '
     ngx.shared.worker_events:flush_all()
     local we = require "resty.worker.events"
-    we.register(function(source, event, data, pid)
+    we.register(function(data, event, source, pid)
         ngx.log(ngx.DEBUG, "worker-events: handler event;  ","source=",source,", event=",event, ", pid=", pid,
                 ", data=", data)
             end)
@@ -176,7 +176,7 @@ lua_shared_dict worker_events 1m;
 init_worker_by_lua '
     ngx.shared.worker_events:flush_all()
     local we = require "resty.worker.events"
-    we.register(function(source, event, data, pid)
+    we.register(function(data, event, source, pid)
         ngx.log(ngx.DEBUG, "worker-events: handler event;  ","source=",source,", event=",event, ", pid=", pid,
                 ", data=", tostring(data))
             end)
@@ -273,7 +273,7 @@ lua_shared_dict worker_events 1m;
 init_worker_by_lua '
     ngx.shared.worker_events:flush_all()
     local we = require "resty.worker.events"
-    we.register(function(source, event, data, pid)
+    we.register(function(data, event, source, pid)
         ngx.log(ngx.DEBUG, "worker-events: handler event;  ","source=",source,", event=",event, ", pid=", pid,
                 ", data=", tostring(data))
             end)
@@ -351,7 +351,7 @@ lua_shared_dict worker_events 1m;
 init_worker_by_lua '
     ngx.shared.worker_events:flush_all()
     local we = require "resty.worker.events"
-    we.register(function(source, event, data, pid)
+    we.register(function(data, event, source, pid)
         ngx.log(ngx.DEBUG, "worker-events: handler event;  ","source=",source,", event=",event, ", pid=", pid,
                 ", data=", data)
             end)
@@ -421,7 +421,7 @@ lua_shared_dict worker_events 1m;
 init_worker_by_lua '
     ngx.shared.worker_events:flush_all()
     local we = require "resty.worker.events"
-    we.register(function(source, event, data, pid)
+    we.register(function(data, event, source, pid)
         ngx.log(ngx.DEBUG, "worker-events: handler event;  ","source=",source,", event=",event, ", pid=", pid,
                 ", data=", data)
             end)
@@ -469,3 +469,124 @@ worker-events: handling event; source=content_by_lua, event=request3, pid=\d+, d
 worker-events: handler event;  source=content_by_lua, event=request3, pid=\d+, data=01234567890$/
 --- timeout: 6
 
+=== TEST 7: registering and unregistering event handlers at different levels
+--- http_config eval
+"$::HttpConfig"
+. q{
+upstream foo.com {
+    server 127.0.0.1:12354;
+}
+
+server {
+    listen 12354;
+    location = /status {
+        return 200;
+    }
+}
+
+lua_shared_dict worker_events 1m;
+init_worker_by_lua '
+    ngx.shared.worker_events:flush_all()
+    local we = require "resty.worker.events"
+    local cb = function(extra, data, event, source, pid)
+        ngx.log(ngx.DEBUG, "worker-events: handler event;  ","source=",source,", event=",event, ", pid=", pid,
+                ", data=", data, ", callback=",extra)
+    end
+    ngx.cb_global  = function(...) return cb("global", ...) end
+    ngx.cb_source  = function(...) return cb("source", ...) end
+    ngx.cb_event12 = function(...) return cb("event12", ...) end
+    ngx.cb_event3  = function(...) return cb("event3", ...) end
+    
+    we.register(ngx.cb_global)
+    we.register(ngx.cb_source,  "content_by_lua")
+    we.register(ngx.cb_event12, "content_by_lua", "request1", "request2")
+    we.register(ngx.cb_event3,  "content_by_lua", "request3")
+    
+    local ok, err = we.configure{
+        shm = "worker_events",
+    }
+    if not ok then
+        ngx.log(ngx.ERR, "failed to configure worker events: ", err)
+        return
+    end
+';
+}
+--- config
+    location = /t {
+        access_log off;
+        content_by_lua '
+            ngx.sleep(1)
+            local we = require "resty.worker.events"
+            we.post("content_by_lua","request1","123")
+            we.post("content_by_lua","request2","123")
+            we.post("content_by_lua","request3","123")
+            we.unregister(ngx.cb_global)
+            we.post("content_by_lua","request1","124")
+            we.post("content_by_lua","request2","124")
+            we.post("content_by_lua","request3","124")
+            we.unregister(ngx.cb_source,  "content_by_lua")
+            we.post("content_by_lua","request1","125")
+            we.post("content_by_lua","request2","125")
+            we.post("content_by_lua","request3","125")
+            we.unregister(ngx.cb_event12, "content_by_lua", "request1", "request2")
+            we.post("content_by_lua","request1","126")
+            we.post("content_by_lua","request2","126")
+            we.post("content_by_lua","request3","126")
+            we.unregister(ngx.cb_event3,  "content_by_lua", "request3")
+            we.post("content_by_lua","request1","127")
+            we.post("content_by_lua","request2","127")
+            we.post("content_by_lua","request3","127")
+            ngx.print("hello world\\n")
+
+        ';
+    }
+
+--- request
+GET /t
+
+--- response_body
+hello world
+--- no_error_log
+[error]
+[alert]
+[warn]
+dropping event: waiting for event data timed out
+--- grep_error_log eval: qr/worker-events: .*?, data=.*/
+--- grep_error_log_out eval
+qr/^worker-events: handling event; source=resty-worker-events, event=started, pid=\d+, data=nil
+worker-events: handler event;  source=resty-worker-events, event=started, pid=\d+, data=nil, callback=global
+worker-events: handling event; source=content_by_lua, event=request1, pid=\d+, data=123
+worker-events: handler event;  source=content_by_lua, event=request1, pid=\d+, data=123, callback=global
+worker-events: handler event;  source=content_by_lua, event=request1, pid=\d+, data=123, callback=source
+worker-events: handler event;  source=content_by_lua, event=request1, pid=\d+, data=123, callback=event12
+worker-events: handling event; source=content_by_lua, event=request2, pid=\d+, data=123
+worker-events: handler event;  source=content_by_lua, event=request2, pid=\d+, data=123, callback=global
+worker-events: handler event;  source=content_by_lua, event=request2, pid=\d+, data=123, callback=source
+worker-events: handler event;  source=content_by_lua, event=request2, pid=\d+, data=123, callback=event12
+worker-events: handling event; source=content_by_lua, event=request3, pid=\d+, data=123
+worker-events: handler event;  source=content_by_lua, event=request3, pid=\d+, data=123, callback=global
+worker-events: handler event;  source=content_by_lua, event=request3, pid=\d+, data=123, callback=source
+worker-events: handler event;  source=content_by_lua, event=request3, pid=\d+, data=123, callback=event3
+worker-events: handling event; source=content_by_lua, event=request1, pid=\d+, data=124
+worker-events: handler event;  source=content_by_lua, event=request1, pid=\d+, data=124, callback=source
+worker-events: handler event;  source=content_by_lua, event=request1, pid=\d+, data=124, callback=event12
+worker-events: handling event; source=content_by_lua, event=request2, pid=\d+, data=124
+worker-events: handler event;  source=content_by_lua, event=request2, pid=\d+, data=124, callback=source
+worker-events: handler event;  source=content_by_lua, event=request2, pid=\d+, data=124, callback=event12
+worker-events: handling event; source=content_by_lua, event=request3, pid=\d+, data=124
+worker-events: handler event;  source=content_by_lua, event=request3, pid=\d+, data=124, callback=source
+worker-events: handler event;  source=content_by_lua, event=request3, pid=\d+, data=124, callback=event3
+worker-events: handling event; source=content_by_lua, event=request1, pid=\d+, data=125
+worker-events: handler event;  source=content_by_lua, event=request1, pid=\d+, data=125, callback=event12
+worker-events: handling event; source=content_by_lua, event=request2, pid=\d+, data=125
+worker-events: handler event;  source=content_by_lua, event=request2, pid=\d+, data=125, callback=event12
+worker-events: handling event; source=content_by_lua, event=request3, pid=\d+, data=125
+worker-events: handler event;  source=content_by_lua, event=request3, pid=\d+, data=125, callback=event3
+worker-events: handling event; source=content_by_lua, event=request1, pid=\d+, data=126
+worker-events: handling event; source=content_by_lua, event=request2, pid=\d+, data=126
+worker-events: handling event; source=content_by_lua, event=request3, pid=\d+, data=126
+worker-events: handler event;  source=content_by_lua, event=request3, pid=\d+, data=126, callback=event3
+worker-events: handling event; source=content_by_lua, event=request1, pid=\d+, data=127
+worker-events: handling event; source=content_by_lua, event=request2, pid=\d+, data=127
+worker-events: handling event; source=content_by_lua, event=request3, pid=\d+, data=127$/
+--- timeout: 6

@@ -39,7 +39,7 @@ http {
     init_worker_by_lua_block {
         local ev = require "resty.worker.events"
 
-        local handler = function(source, event, data, pid)
+        local handler = function(data, event, source, pid)
             print("received event; source=",source,
                   ", event=",event,
                   ", data=", tostring(data),
@@ -104,7 +104,7 @@ The design allows for 3 usecases;
 the order of the events is guranteed to be the same in all worker processes. Example; 
 a healthcheck running in one worker, but informing all workers of a failed
 upstream node.
-2. broadcast an event to the local worker only, see [post_local]((#post_local).
+2. broadcast an event to the local worker only, see [post_local](#post_local).
 3. coalesce external events to a single action. Example; all workers watch
 external events indicating an in-memory cache needs to be refreshed. When 
 receiving it they all post it with a unique event hash (all workers generate the 
@@ -210,7 +210,7 @@ return _M
 -- Event client example;
 
 -- define a callback and use source modules events table
-local my_callback = function(source, event, data, pid)
+local my_callback = function(data, event, source, pid)
     if source == ev.events._source then
         if event == ev.events.started then  -- 'started' is the event name
 
@@ -282,11 +282,16 @@ The return value will be `true`, or `nil` and an error message.
 
 register
 --------
-`syntax: events.register(callback)`
+`syntax: events.register(callback, source, event1, event2, ...)`
 
-Will register a callback function to receive events. The callback should have the following signature;
+Will register a callback function to receive events. If `source` and `event` are omitted, then the
+callback will be executed on _every_ event, if `source` is provided, then only events with a 
+matching source will be passed. If (one or more) event name is given, then only when
+both `source` and `event` match the callback is invoked.
 
-`syntax: callback = function(source, event, data, pid)`
+The callback should have the following signature;
+
+`syntax: callback = function(data, event, source, pid)`
 
 The parameters will be the same as the ones provided to [post](#post), except for the extra value
 `pid` which will be the pid of the originating worker process, or `nil` if it was a local event
@@ -304,9 +309,10 @@ calling [configure](#configure)
 
 unregister
 ----------
-`syntax: events.unregister(callback)`
+`syntax: events.unregister(callback, source, event1, event2, ...)`
 
-Will unregister the callback function and prevent it from receiving further events.
+Will unregister the callback function and prevent it from receiving further events. The parameters 
+work exactly the same as with [register](#register).
 
 The return value will be `true` if it was removed, `false` if it was not in the handlers list, or
 it will throw an error if `callback` is not a function value.
