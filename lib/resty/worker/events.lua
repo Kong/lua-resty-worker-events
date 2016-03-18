@@ -1,24 +1,3 @@
---[[== START ============= temporary debug code ==============================--
--- with Lua 5.1 patch global xpcall to take function args (standard in 5.2+)
-if _VERSION=="Lua 5.1" then
-  local xp = xpcall
-  xpcall = function(f, err, ...)
-    local a = { n = select("#", ...), ...}
-    return xp(function(...) return f(unpack(a,1,a.n)) end, err)
-  end
-end
-
--- error handler to attach stacktrack to error message
-local ehandler = function(err)
-  return debug.traceback(tostring(err))
-end
-
--- patch global pcall to attach stacktrace to the error.
-pcall = function(fn, ...)
-  return xpcall(fn, ehandler, ...)
-end
---==== END =============== temporary debug code ============================]]--
-
 local log = ngx.log
 local ERR = ngx.ERR
 local INFO = ngx.INFO
@@ -26,7 +5,7 @@ local WARN = ngx.WARN
 local DEBUG = ngx.DEBUG
 local new_timer = ngx.timer.at
 local shared = ngx.shared
-local debug_mode = true --ngx.config.debug
+local debug_mode = ngx.config.debug
 local tostring = tostring
 local ipairs = ipairs
 local pcall = pcall
@@ -110,7 +89,7 @@ local function errlog(...)
     log(ERR, "worker-events: ", ...)
 end
 
---local debug = function() end
+local debug = function() end
 if debug_mode then
     debug = function(...)
         -- print("debug mode: ", debug_mode)
@@ -346,18 +325,15 @@ _M.register = function(callback, source, ...)
     if not source then
         -- register as global event handler
         tinsert(_callbacks, callback)
-debug("### global registered: ", #_callbacks)        
     else
         local events = {...}
         if #events == 0 then
             -- register as an eventsource handler
             tinsert(_callbacks[source], callback)
-debug("### source only registered (", source, "): ", #_callbacks[source])
         else
             -- register as an event specific handler, for multiple events
             for _, event in ipairs(events) do
                 tinsert(_callbacks[source][event], callback)
-debug("### event only registered (", source,"-",event, "): ", #_callbacks[source][event])
             end
         end
     end
