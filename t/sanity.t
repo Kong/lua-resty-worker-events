@@ -9,7 +9,7 @@ use Cwd qw(cwd);
 
 #repeat_each(2);
 
-plan tests => repeat_each() * (blocks() * 6 + 8);
+plan tests => repeat_each() * (blocks() * 6 + 5);
 
 my $pwd = cwd();
 
@@ -50,6 +50,7 @@ init_worker_by_lua '
             end)
     local ok, err = we.configure{
         shm = "worker_events",
+        interval = 0.001,
     }
     if not ok then
         ngx.log(ngx.ERR, "failed to configure worker events: ", err)
@@ -61,9 +62,11 @@ init_worker_by_lua '
     location = /t {
         access_log off;
         content_by_lua '
-            ngx.sleep(1)
             ngx.print("hello world\\n")
-
+            local f = assert(io.open("t/servroot/logs/nginx.pid"))
+            local pid = assert(tonumber(f:read()), "read pid")
+            f:close()
+            assert(os.execute("kill -HUP "..pid))
         ';
     }
 
@@ -77,15 +80,19 @@ hello world
 [alert]
 [warn]
 dropping event: waiting for event data timed out
---- grep_error_log eval: qr/worker-events: .*|signal 3 .*|gracefully .*/
+--- grep_error_log eval: qr/worker-events: .*|gracefully .*/
 --- grep_error_log_out eval
 qr/^worker-events: handling event; source=resty-worker-events, event=started, pid=\d+, data=nil
 worker-events: handler event;  source=resty-worker-events, event=started, pid=\d+, data=nil
-signal 3 (SIGQUIT) received, shutting down
+worker-events: handling event; source=resty-worker-events, event=started, pid=\d+, data=nil
+worker-events: handler event;  source=resty-worker-events, event=started, pid=\d+, data=nil
 gracefully shutting down
+worker-events: handling event; source=resty-worker-events, event=stopping, pid=\d+, data=nil
+worker-events: handler event;  source=resty-worker-events, event=stopping, pid=\d+, data=nil
 worker-events: handling event; source=resty-worker-events, event=stopping, pid=\d+, data=nil
 worker-events: handler event;  source=resty-worker-events, event=stopping, pid=\d+, data=nil$/
 --- timeout: 6
+--- wait: 0.2
 
 
 === TEST 2: worker.events posting and handling events, broadcast and local

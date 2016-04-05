@@ -100,9 +100,9 @@ if debug_mode then
 end
 
 -- gets current event id
--- @return event_id, or nil+error
+-- @return event_id
 local function get_event_id()
-    return _dict:get(KEY_LAST_ID)
+    return _dict:get(KEY_LAST_ID) or 0
 end
 
 -- gets event data
@@ -254,6 +254,7 @@ _M.poll = function()
     while _last_event < event_id do
       count = count + 1
       _last_event = _last_event + 1
+      --debug("fetching event", _last_event)
       cache_data[count], cache_err[count] = get_event_data(_last_event)
     end
 
@@ -461,9 +462,8 @@ _M.configure = function(opts)
     _timeout = timeout
     _wait_interval = wait_interval
     _wait_max = wait_max
-    _dict:add(KEY_LAST_ID, 0)  -- make sure the key exists
-
-    _last_event = _last_event or get_event_id() or 0
+    --_dict:add(KEY_LAST_ID, 0)  -- make sure the key exists
+    _last_event = _last_event or get_event_id()
 
     if not started then
         -- we're live, let's celebrate it with an event
