@@ -5,7 +5,7 @@ local WARN = ngx.WARN
 local DEBUG = ngx.DEBUG
 local new_timer = ngx.timer.at
 local shared = ngx.shared
-local debug_mode = ngx.config.debug
+local debug_mode = true --ngx.config.debug
 local tostring = tostring
 local ipairs = ipairs
 local pcall = pcall
@@ -209,7 +209,8 @@ _M.post = function(source, event, data, unique)
 
     local success, err = post_event(source, event, data, unique)
     if not success then
-        err = 'failed posting event "'..event..'" by "'..source..'"'
+        err = 'failed posting event "'..event..'" by "'..
+              source..'"; '..tostring(err)
         errlog(err)
         return success, err
     end
@@ -280,7 +281,7 @@ _M.poll = function()
        if data then
             do_event_json(_last_event - count + idx, data)
         else
-            warn("dropping event; waiting for event data timed out, id: ",
+            errlog("dropping event; waiting for event data timed out, id: ",
                  _last_event - count + idx)
         end
     end

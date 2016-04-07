@@ -9,7 +9,7 @@ use Cwd qw(cwd);
 
 #repeat_each(2);
 
-plan tests => repeat_each() * (blocks() * 6 + 5);
+plan tests => repeat_each() * (blocks() * 6 + 4);
 
 my $pwd = cwd();
 
@@ -324,7 +324,6 @@ GET /t
 --- response_body
 hello world
 --- no_error_log
-[error]
 [alert]
 --- grep_error_log eval: qr/worker-events: .*?, data=.*|worker-events: dropping event; waiting for event data timed out.*/
 --- grep_error_log_out eval
