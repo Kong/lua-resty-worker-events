@@ -1,8 +1,8 @@
 package = "lua-resty-worker-events"
 version = "0.1.0-1"
 source = {
-   url = "https://github.com/...todo.../v2_0_0.tar.gz",
-   dir = "lua-resty-worker-events-0_1_0",
+   url = "https://github.com/Mashape/lua-resty-worker-events/archive/0.1.0.tar.gz",
+   dir = "lua-resty-worker-events-0.1.0"
 }
 description = {
    summary = "Cross worker eventbus for OpenResty",
@@ -13,7 +13,7 @@ description = {
       The order of the events is guaranteed the same in all workers.
    ]],
    license = "Apache 2.0",
-   homepage = "https://github.com/Mashape/...todo.../"
+   homepage = "https://github.com/Mashape/lua-resty-worker-events"
 }
 dependencies = {
 }
