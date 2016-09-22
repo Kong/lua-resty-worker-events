@@ -115,10 +115,6 @@ end
 local function post_event(source, event, data, unique)
     local json, err, event_id, success
 
-    _dict:add(KEY_LAST_ID, 0)
-    event_id, err = _dict:incr(KEY_LAST_ID, 1)
-    if err then return event_id, err end
-
     json, err = cjson.encode({
             source = source,
             event = event,
@@ -127,6 +123,10 @@ local function post_event(source, event, data, unique)
             pid = _pid,
         })
     if not json then return json, err end
+
+    _dict:add(KEY_LAST_ID, 0)
+    event_id, err = _dict:incr(KEY_LAST_ID, 1)
+    if err then return event_id, err end
 
     success, err = _dict:add(KEY_DATA..tostring(event_id), json, _timeout)
     if not success then return success, err end
