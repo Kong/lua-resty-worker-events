@@ -273,7 +273,18 @@ _M.poll = function()
                     break
                 end
                 -- wait and retry
-                sleep(_wait_interval)
+                local success, err = pcall(sleep, _wait_interval)
+                if not success then
+                  -- the `sleep` function is unavailable in the current openresty 'context' (eg. 'init_worker')
+                  if _wait_interval >= 0.5 then
+                    -- large interval, use more efficient but very coarse os sleep functiom
+                    os.execute("sleep "..tostring(math.floor(_wait_interval + 0.5))) -- round to second precision
+                  else
+                    -- do a busy wait for small intervals
+                    local exp = now() + _wait_interval
+                    while now() < exp do end
+                  end
+                end
                 data, err = get_event_data(_last_event - count + idx)
             end
         end
