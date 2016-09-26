@@ -115,10 +115,6 @@ end
 local function post_event(source, event, data, unique)
     local json, err, event_id, success
 
-    _dict:add(KEY_LAST_ID, 0)
-    event_id, err = _dict:incr(KEY_LAST_ID, 1)
-    if err then return event_id, err end
-
     json, err = cjson.encode({
             source = source,
             event = event,
@@ -127,6 +123,10 @@ local function post_event(source, event, data, unique)
             pid = _pid,
         })
     if not json then return json, err end
+
+    _dict:add(KEY_LAST_ID, 0)
+    event_id, err = _dict:incr(KEY_LAST_ID, 1)
+    if err then return event_id, err end
 
     success, err = _dict:add(KEY_DATA..tostring(event_id), json, _timeout)
     if not success then return success, err end
@@ -273,7 +273,18 @@ _M.poll = function()
                     break
                 end
                 -- wait and retry
-                sleep(_wait_interval)
+                local success, err = pcall(sleep, _wait_interval)
+                if not success then
+                  -- the `sleep` function is unavailable in the current openresty 'context' (eg. 'init_worker')
+                  if _wait_interval >= 0.5 then
+                    -- large interval, use more efficient but very coarse os sleep functiom
+                    os.execute("sleep "..tostring(math.floor(_wait_interval + 0.5))) -- round to second precision
+                  else
+                    -- do a busy wait for small intervals
+                    local exp = now() + _wait_interval
+                    while now() < exp do end
+                  end
+                end
                 data, err = get_event_data(_last_event - count + idx)
             end
         end

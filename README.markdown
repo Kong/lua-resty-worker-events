@@ -153,6 +153,9 @@ The return value will be `true`, or `nil` and an error message.
 This method can be called repeatedly to update the settings, except for the `shm` value which
 cannot be changed after the initial configuration.
 
+NOTE: the `wait_interval` is executed using the `ngx.sleep` function. In contexts where this 
+function is not available (eg. `init_worker`) it will execute a busy-wait to execute the delay.
+
 [Back to TOC](#table-of-contents)
 
 configured
