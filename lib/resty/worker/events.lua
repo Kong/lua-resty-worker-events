@@ -290,13 +290,15 @@ _M.poll = function()
         -- 'context' (eg. 'init_worker'), then the pcall fails. We're not
         -- checking the result, but will effectively be doing a busy-wait
         -- by looping until it hits the time-out, or the data is retrieved
+        _busy_polling = true  -- need to flag because `sleep` will yield control and another coroutine might re-enter
         pcall(sleep, _wait_interval)
+        _busy_polling = nil
         data, err = get_event_data(_last_event - count + idx)
       end
     end
 
     if data then
-      _busy_polling = true
+      _busy_polling = true -- need to flag to make sure the eventhandlers do not re-enter
       do_event_json(_last_event - count + idx, data)
       _busy_polling = nil
     else
