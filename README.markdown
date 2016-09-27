@@ -248,7 +248,13 @@ Will poll for new events and handle them all (call the registered callbacks). Th
 efficient, it will only check a single shared memory value and return immediately if no new events
 are available.
 
-The return value will be `true`, or `nil` and an error message.
+The return value will be `true` when it handled all events, `false` if it was
+already in polling-loop, or `nil + error` if something went wrong.
+The `false` result generally happens when posting an event from an eventhandler. The
+eventhandler was called from `poll`, and when posting an event, the post methods will
+also call `poll` after posting the event, causing a loop. The `false` result simply
+means that the event was succesfully posted, but not handled yet, due to other
+events ahead of it that need to be handled first.
 
 [Back to TOC](#table-of-contents)
 
@@ -265,14 +271,13 @@ value will be ignored (for the `timeout` period specified to [configure](#config
 The process executing the event will not necessarily be the process posting the event.
 
 Before returning, it will call [poll](#poll) to handle all events up to and including the newly posted
-event.
+event. Check the return value to make sure it completed, see `poll`.
 
-The return value will be `true`, or `nil` and an error message.
+The return value will be the result from `poll`.
 
 *Note*: the worker process sending the event, will also receive the event! So if
 the eventsource will also act upon the event, it should not do so from the event
-posting code, but only when receiving it. Because `poll` is called by the `post`
-method, the event will have been handled before the call to `post` returns.
+posting code, but only when receiving it.
 
 [Back to TOC](#table-of-contents)
 
@@ -284,9 +289,9 @@ The same as [post](#post) except that the event will be local to the worker proc
 be broadcasted to other workers. With this method, the `data` element will not be jsonified.
 
 Before returning, it will call [poll](#poll) to first handle the posted event and then handle all
-other newly posted events.
+other newly posted events. Check the return value to make sure it completed, see `poll`.
 
-The return value will be `true`, or `nil` and an error message.
+The return value will be the result from `poll`.
 
 [Back to TOC](#table-of-contents)
 
