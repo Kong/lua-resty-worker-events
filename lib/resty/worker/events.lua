@@ -4,7 +4,6 @@ local INFO = ngx.INFO
 local WARN = ngx.WARN
 local DEBUG = ngx.DEBUG
 local new_timer = ngx.timer.at
-local shared = ngx.shared
 local debug_mode = ngx.config.debug
 local tostring = tostring
 local ipairs = ipairs
@@ -440,7 +439,7 @@ _M.configure = function(opts)
     return nil, '"shm" option required to start'
   end
 
-  local dict = shared[shm]
+  local dict = ngx.shared[shm]
   if not dict then
     return nil, 'shm "' .. tostring(shm) .. '" not found'
   end
