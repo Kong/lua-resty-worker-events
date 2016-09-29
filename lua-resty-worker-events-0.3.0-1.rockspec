@@ -1,8 +1,8 @@
 package = "lua-resty-worker-events"
-version = "0.2.0-1"
+version = "0.3.0-1"
 source = {
-   url = "https://github.com/Mashape/lua-resty-worker-events/archive/0.2.0.tar.gz",
-   dir = "lua-resty-worker-events-0.2.0"
+   url = "https://github.com/Mashape/lua-resty-worker-events/archive/0.3.0.tar.gz",
+   dir = "lua-resty-worker-events-0.3.0"
 }
 description = {
    summary = "Cross worker eventbus for OpenResty",

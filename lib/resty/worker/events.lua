@@ -66,7 +66,7 @@ local _callbacks = autotable(2)
 
 
 local _M = {
-  _VERSION = '0.01',
+  _VERSION = '0.3.0',
 }
 
 if not ngx.config
