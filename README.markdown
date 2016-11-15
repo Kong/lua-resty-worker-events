@@ -101,7 +101,8 @@ server. Communication is through a shared memory zone where event data will be s
 
 The order of events in all workers is __guaranteed__ to be the same.
 
-The workerprocess will setup a timer to check for events in the background. The module follows a singleton pattern and hence runs once per worker. If staying
+The workerprocess will setup a timer to check for events in the background. The
+module follows a singleton pattern and hence runs once per worker. If staying
 up-to-date is important though, the interval can be set to a lesser frequency and a
 call to [poll](#poll) upon each request received makes sure everything is handled
 as soon as possible.
@@ -249,7 +250,7 @@ efficient, it will only check a single shared memory value and return immediatel
 are available.
 
 The return value will be `true` when it handled all events, `false` if it was
-already in polling-loop, or `nil + error` if something went wrong.
+already in a polling-loop, or `nil + error` if something went wrong.
 The `false` result generally happens when posting an event from an eventhandler. The
 eventhandler was called from `poll`, and when posting an event, the post methods will
 also call `poll` after posting the event, causing a loop. The `false` result simply
@@ -316,6 +317,9 @@ to all callbacks, _so do not change the value in your handler, unless you know w
 
 The return value of `register` will be `true`, or it will throw an error if `callback` is not a
 function value.
+
+*WARNING*: event handlers must return quickly. If a handler takes more time than
+the configured `timeout` value, events will be dropped!
 
 *Note*: to receive the process own `started` event, the handler must be registered before
 calling [configure](#configure)
