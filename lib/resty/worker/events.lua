@@ -298,8 +298,15 @@ _M.poll = function()
 
     if data then
       _busy_polling = true -- need to flag to make sure the eventhandlers do not re-enter
+      local xtime = now()
       do_event_json(_last_event - count + idx, data)
+      local duration = now()-xtime
       _busy_polling = nil
+      if duration>_timeout then
+        warn("processing event ",tostring(_last_event - count + idx),
+             " took "..duration.." seconds, longer than the 'timeout' value "..
+             "for retaining event data, events might be dropped.")
+      end
     else
       errlog("dropping event; waiting for event data timed out, id: ",
            _last_event - count + idx)
@@ -483,7 +490,6 @@ _M.configure = function(opts)
   _timeout = timeout
   _wait_interval = wait_interval
   _wait_max = wait_max
-  --_dict:add(KEY_LAST_ID, 0)  -- make sure the key exists
   _last_event = _last_event or get_event_id()
 
   if not started then
