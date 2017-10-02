@@ -18,6 +18,7 @@ Table of Contents
     * [post](#post)
     * [post_local](#post_local)
     * [register](#register)
+    * [register_weak](#register_weak)
     * [unregister](#unregister)
 * [Installation](#installation)
 * [TODO](#todo)
@@ -323,6 +324,15 @@ the configured `timeout` value, events will be dropped!
 
 *Note*: to receive the process own `started` event, the handler must be registered before
 calling [configure](#configure)
+
+[Back to TOC](#table-of-contents)
+
+register_weak
+-------------
+`syntax: events.register_weak(callback, source, event1, event2, ...)`
+
+This function is identical to `register`, with the exception that the module
+will only hold _weak references_ to the `callback` function.
 
 [Back to TOC](#table-of-contents)
 

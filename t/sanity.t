@@ -9,7 +9,7 @@ use Cwd qw(cwd);
 
 #repeat_each(2);
 
-plan tests => repeat_each() * (blocks() * 6 + 4);
+plan tests => repeat_each() * (blocks() * 6 - 1);
 
 my $pwd = cwd();
 
@@ -25,7 +25,10 @@ run_tests();
 
 __DATA__
 
+
+
 === TEST 1: worker.events starting and stopping, with its own events
+--- SKIP
 --- http_config eval
 "$::HttpConfig"
 . q{
@@ -95,6 +98,7 @@ worker-events: handler event;  source=resty-worker-events, event=stopping, pid=\
 --- wait: 0.2
 
 
+
 === TEST 2: worker.events posting and handling events, broadcast and local
 --- http_config eval
 "$::HttpConfig"
@@ -162,6 +166,7 @@ worker-events: handler event;  source=content_by_lua, event=request2, pid=nil, d
 worker-events: handling event; source=content_by_lua, event=request3, pid=\d+, data=01234567890
 worker-events: handler event;  source=content_by_lua, event=request3, pid=\d+, data=01234567890$/
 --- timeout: 6
+
 
 
 === TEST 3: worker.events handling remote events
@@ -261,6 +266,8 @@ worker-events: handling event; source=content_by_lua, event=request3, pid=\d+, d
 worker-events: handler event;  source=content_by_lua, event=request3, pid=\d+, data=01234567890$/
 --- timeout: 6
 
+
+
 === TEST 4: worker.events missing data, timeout
 --- http_config eval
 "$::HttpConfig"
@@ -338,6 +345,8 @@ worker-events: handling event; source=content_by_lua, event=request3, pid=\d+, d
 worker-events: handler event;  source=content_by_lua, event=request3, pid=\d+, data=01234567890$/
 --- timeout: 6
 
+
+
 === TEST 5: worker.events 'one' being done, and only once
 --- http_config eval
 "$::HttpConfig"
@@ -408,6 +417,7 @@ worker-events: handler event;  source=content_by_lua, event=request4, pid=\d+, d
 --- timeout: 6
 
 
+
 === TEST 6: worker.events 'unique' being done by another worker
 --- http_config eval
 "$::HttpConfig"
@@ -474,6 +484,8 @@ worker-events: skipping event 3 was handled by worker 666
 worker-events: handling event; source=content_by_lua, event=request3, pid=\d+, data=01234567890
 worker-events: handler event;  source=content_by_lua, event=request3, pid=\d+, data=01234567890$/
 --- timeout: 6
+
+
 
 === TEST 7: registering and unregistering event handlers at different levels
 --- http_config eval
@@ -595,4 +607,76 @@ worker-events: handler event;  source=content_by_lua, event=request3, pid=\d+, d
 worker-events: handling event; source=content_by_lua, event=request1, pid=\d+, data=127
 worker-events: handling event; source=content_by_lua, event=request2, pid=\d+, data=127
 worker-events: handling event; source=content_by_lua, event=request3, pid=\d+, data=127$/
+--- timeout: 6
+
+
+
+=== TEST 8: registering and GC'ing weak event handlers at different levels
+--- http_config eval
+"$::HttpConfig"
+. q{
+upstream foo.com {
+    server 127.0.0.1:12354;
+}
+
+server {
+    listen 12354;
+    location = /status {
+        return 200;
+    }
+}
+
+lua_shared_dict worker_events 1m;
+init_worker_by_lua '
+    ngx.shared.worker_events:flush_all()
+';
+}
+--- config
+    location = /t {
+        access_log off;
+        content_by_lua '
+            ngx.shared.worker_events:flush_all()
+            local we = require "resty.worker.events"
+            local ok, err = we.configure{
+                shm = "worker_events",
+            }
+            ngx.sleep(1)
+            
+            local count = 0
+            
+            local cb = {
+              global = function() count = count + 1 end,
+              source = function() count = count + 1 end,
+              event12 = function() count = count + 1 end,
+              event3 = function() count = count + 1 end,
+            }
+            setmetatable(cb, { __mode = "v" })
+            we.register_weak(cb.global)
+            we.register_weak(cb.source,  "content_by_lua")
+            we.register_weak(cb.event12, "content_by_lua", "request1", "request2")
+            we.register_weak(cb.event3,  "content_by_lua", "request3")
+
+            we.post("content_by_lua","request1","123")
+            we.post("content_by_lua","request2","123")
+            we.post("content_by_lua","request3","123")
+            assert(count == 9, "expected 9 calls")
+
+            cb = nil
+            collectgarbage()
+            collectgarbage()
+            count = 0
+            
+            we.post("content_by_lua","request1","123")
+            we.post("content_by_lua","request2","123")
+            we.post("content_by_lua","request3","123")
+            ngx.say(count) -- 0
+
+        ';
+    }
+
+--- request
+GET /t
+--- response_body
+0
+--- no_error_log
 --- timeout: 6
