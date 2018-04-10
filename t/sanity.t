@@ -9,7 +9,7 @@ use Cwd qw(cwd);
 
 #repeat_each(2);
 
-plan tests => repeat_each() * (blocks() * 6 - 1);
+plan tests => repeat_each() * (blocks() * 6 - 4);
 
 my $pwd = cwd();
 
@@ -692,3 +692,57 @@ before GC:9
 after GC:0
 --- no_error_log
 --- timeout: 6
+
+
+
+=== TEST 9: callback error handling
+--- http_config eval
+"$::HttpConfig"
+. q{
+upstream foo.com {
+    server 127.0.0.1:12354;
+}
+
+server {
+    listen 12354;
+    location = /status {
+        return 200;
+    }
+}
+
+lua_shared_dict worker_events 1m;
+init_worker_by_lua '
+    ngx.shared.worker_events:flush_all()
+';
+}
+--- config
+    location = /t {
+        access_log off;
+        content_by_lua '
+            ngx.shared.worker_events:flush_all()
+            local we = require "resty.worker.events"
+            local ok, err = we.configure{
+                shm = "worker_events",
+            }
+            local error_func = function()
+              error("something went wrong here!")
+            end
+            local test_callback = function(source, event, data, pid)
+              error_func() -- nested call to check stack trace
+            end
+            we.register(test_callback)
+
+            -- non-serializable test data containing a function value
+            -- use "nil" as data, reproducing issue #5
+            we.post("content_by_lua","test_event", nil)
+
+            ngx.say("ok")
+        ';
+    }
+
+--- request
+GET /t
+--- response_body
+ok
+--- error_log
+something went wrong here!
