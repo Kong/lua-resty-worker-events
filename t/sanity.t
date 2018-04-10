@@ -514,12 +514,12 @@ init_worker_by_lua '
     ngx.cb_source  = function(...) return cb("source", ...) end
     ngx.cb_event12 = function(...) return cb("event12", ...) end
     ngx.cb_event3  = function(...) return cb("event3", ...) end
-    
+
     we.register(ngx.cb_global)
     we.register(ngx.cb_source,  "content_by_lua")
     we.register(ngx.cb_event12, "content_by_lua", "request1", "request2")
     we.register(ngx.cb_event3,  "content_by_lua", "request3")
-    
+
     local ok, err = we.configure{
         shm = "worker_events",
     }
@@ -641,16 +641,27 @@ init_worker_by_lua '
                 shm = "worker_events",
             }
             ngx.sleep(1)
-            
+
             local count = 0
-            
+
             local cb = {
-              global = function() count = count + 1 end,
-              source = function() count = count + 1 end,
-              event12 = function() count = count + 1 end,
-              event3 = function() count = count + 1 end,
+              global = function(source, event)
+                ngx.log(ngx.DEBUG, "global handler: ", source, ", ", event)
+                count = count + 1
+              end,
+              source = function(source, event)
+                ngx.log(ngx.DEBUG, "global source: ", source, ", ", event)
+                count = count + 1
+              end,
+              event12 = function(source, event)
+                ngx.log(ngx.DEBUG, "global event12: ", source, ", ", event)
+                count = count + 1
+              end,
+              event3 = function(source, event)
+                ngx.log(ngx.DEBUG, "global event3: ", source, ", ", event)
+                count = count + 1
+              end,
             }
-            setmetatable(cb, { __mode = "v" })
             we.register_weak(cb.global)
             we.register_weak(cb.source,  "content_by_lua")
             we.register_weak(cb.event12, "content_by_lua", "request1", "request2")
@@ -659,17 +670,17 @@ init_worker_by_lua '
             we.post("content_by_lua","request1","123")
             we.post("content_by_lua","request2","123")
             we.post("content_by_lua","request3","123")
-            assert(count == 9, "expected 9 calls")
+            ngx.say("before GC:", count)
 
             cb = nil
             collectgarbage()
             collectgarbage()
             count = 0
-            
+
             we.post("content_by_lua","request1","123")
             we.post("content_by_lua","request2","123")
             we.post("content_by_lua","request3","123")
-            ngx.say(count) -- 0
+            ngx.say("after GC:", count) -- 0
 
         ';
     }
@@ -677,6 +688,7 @@ init_worker_by_lua '
 --- request
 GET /t
 --- response_body
-0
+before GC:9
+after GC:0
 --- no_error_log
 --- timeout: 6
