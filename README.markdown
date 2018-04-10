@@ -394,6 +394,7 @@ History
 
 0.3.2, xx-Apr-2018
 
+- change: add a stacktrace to handler errors
 - fix: failing error handler if value was non-serializable, see issue #5
 - fix: fix a test for the weak handlers
 

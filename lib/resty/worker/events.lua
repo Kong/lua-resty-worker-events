@@ -8,10 +8,12 @@ local debug_mode = ngx.config.debug
 local tostring = tostring
 local ipairs = ipairs
 local pcall = pcall
+local xpcall = xpcall
 local cjson = require("cjson.safe").new()
 local get_pid = ngx.worker.pid
 local now = ngx.now
 local sleep = ngx.sleep
+local traceback = debug.traceback
 
 -- event keys to shm
 local KEY_LAST_ID = "events-last"         -- ID of last event posted
@@ -30,6 +32,25 @@ local _wait_interval -- interval between tries when event data is unavailable
 
 local dump = function(...)
   ngx.log(ngx.DEBUG,"\027[31m", require("pl.pretty").write({...}),"\027[0m")
+end
+
+do
+  -- test whether xpcall is 5.2 compatible, and supports extra arguments
+  local xpcall_52 = xpcall(function(x)
+      assert(x == 1)
+    end, function() end, 1)
+
+  if not xpcall_52 then
+    -- No support for extra args, so need to wrap xpcall
+    local _xpcall = xpcall
+    local unpack = unpack or table.unpack
+    xpcall = function(f, eh, ...)
+      local args = { n = select("#", ...), ...}
+      return _xpcall(function()
+                       return f(unpack(args, 1, args.n))
+                     end, eh)
+    end
+  end
 end
 
 -- defaults
@@ -166,7 +187,7 @@ local function do_handlerlist(handler_list, source, event, data, pid)
         list[handler_list[count_key]] = nil
         handler_list[count_key] = handler_list[count_key] - 1
       else
-        success, err = pcall(handler, data, event, source, pid)
+        success, err = xpcall(handler, traceback, data, event, source, pid)
         if not success then
           local d, e
           if type(data) == "table" then
