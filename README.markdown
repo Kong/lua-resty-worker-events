@@ -392,7 +392,7 @@ All rights reserved.
 History
 =======
 
-0.3.2, xx-Apr-2018
+0.3.2, 11-Apr-2018
 
 - change: add a stacktrace to handler errors
 - fix: failing error handler if value was non-serializable, see issue #5
