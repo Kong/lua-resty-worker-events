@@ -20,7 +20,6 @@ local KEY_ONE     = "events-one:"         -- key for 'one' events check
 
 -- globals as upvalues (module is intended to run once per worker process)
 local _dict          -- the shared dictionary to use
-local _timeout       -- expire time for event data posted in shm (seconds)
 local _interval      -- polling interval (in seconds)
 local _pid = get_pid()
 local _last_event    -- event id of the last event handled
@@ -52,7 +51,6 @@ do
 end
 
 -- defaults
-local DEFAULT_TIMEOUT = 2
 local DEFAULT_INTERVAL = 1
 local DEFAULT_WAIT_MAX = 0.5
 local DEFAULT_WAIT_INTERVAL = 0.010
@@ -140,7 +138,7 @@ local function post_event(source, event, data, unique)
   event_id, err = _dict:incr(KEY_LAST_ID, 1)
   if err then return event_id, err end
 
-  success, err = _dict:add(KEY_DATA..tostring(event_id), json, _timeout)
+  success, err = _dict:add(KEY_DATA..tostring(event_id), json)
   if not success then return success, err end
 
   return event_id
@@ -205,7 +203,7 @@ end
 -- for 'one' events, returns `true` when this worker is supposed to handle it
 local function mine_to_have(id, unique)
   local key = KEY_ONE .. tostring(unique)
-  local success, err = _dict:add(key, _pid, _timeout)
+  local success, err = _dict:add(key, _pid)
 
   if success then return true end
 
@@ -340,16 +338,8 @@ _M.poll = function()
 
     if data then
       _busy_polling = true -- need to flag to make sure the eventhandlers do not re-enter
-      local xtime = now()
       do_event_json(_last_event - count + idx, data)
-      local duration = now()-xtime
       _busy_polling = nil
-      if duration>_timeout then
-        log(WARN, "worker-events: processing event ",
-             tostring(_last_event - count + idx),
-             " took "..duration.." seconds, longer than the 'timeout' value "..
-             "for retaining event data, events might be dropped.")
-      end
     else
       log(ERR, "worker-events: dropping event; waiting for event data ",
            "timed out, id: ", _last_event - count + idx)
@@ -525,7 +515,6 @@ _M.configure = function(opts)
     _pid = get_pid()
     --_dict = nil     -- this value can actually stay, because its shared
     _interval = nil
-    _timeout = nil
     _callbacks = nil
     _wait_max = nil
     _wait_interval = nil
@@ -543,14 +532,6 @@ _M.configure = function(opts)
   local dict = ngx.shared[shm]
   if not dict then
     return nil, 'shm "' .. tostring(shm) .. '" not found'
-  end
-
-  local timeout = opts.timeout or (_timeout or DEFAULT_TIMEOUT)
-  if type(timeout) ~= "number" and timeout ~= nil then
-    return nil, 'optional "timeout" option must be a number'
-  end
-  if timeout <= 0 then
-    return nil, '"timeout" must be greater than 0'
   end
 
   local interval = opts.interval or (_interval or DEFAULT_INTERVAL)
@@ -581,7 +562,6 @@ _M.configure = function(opts)
   local old_interval = _interval
   _interval = interval
   _dict = dict
-  _timeout = timeout
   _wait_interval = wait_interval
   _wait_max = wait_max
   _last_event = _last_event or get_event_id()

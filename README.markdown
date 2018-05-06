@@ -394,6 +394,10 @@ History
 
 Note: please update version number in the code when releasing a new version!
 
+x.x.x, xxx-May-2018
+
+- fix: timouts in init phases, by removing timeout setting
+
 0.3.2, 11-Apr-2018
 
 - change: add a stacktrace to handler errors
