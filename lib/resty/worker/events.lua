@@ -1,6 +1,5 @@
 local log = ngx.log
 local ERR = ngx.ERR
-local WARN = ngx.WARN
 local DEBUG = ngx.DEBUG
 local new_timer = ngx.timer.at
 local tostring = tostring
@@ -19,13 +18,14 @@ local KEY_DATA    = "events-data:"        -- serialized event json data
 local KEY_ONE     = "events-one:"         -- key for 'one' events check
 
 -- globals as upvalues (module is intended to run once per worker process)
-local _dict          -- the shared dictionary to use
-local _interval      -- polling interval (in seconds)
+local _dict           -- the shared dictionary to use
+local _unique_timeout -- expire time for unique data posted in shm (seconds)
+local _interval       -- polling interval (in seconds)
 local _pid = get_pid()
-local _last_event    -- event id of the last event handled
-local _wait_max      -- how long (in seconds) to wait when we have an event id,
-                     -- but no data, for the data to show up.
-local _wait_interval -- interval between tries when event data is unavailable
+local _last_event     -- event id of the last event handled
+local _wait_max       -- how long (in seconds) to wait when we have an event id,
+                      -- but no data, for the data to show up.
+local _wait_interval  -- interval between tries when event data is unavailable
 
 local dump = function(...)
   ngx.log(ngx.DEBUG,"\027[31m", require("pl.pretty").write({...}),"\027[0m")
@@ -51,6 +51,7 @@ do
 end
 
 -- defaults
+local DEFAULT_UNIQUE_TIMEOUT = 2
 local DEFAULT_INTERVAL = 1
 local DEFAULT_WAIT_MAX = 0.5
 local DEFAULT_WAIT_INTERVAL = 0.010
@@ -86,7 +87,7 @@ end
 -- there is no limit.
 -- @param mode (optional) set the weak table behavior
 -- @return new auto-table
-function autotable(depth)
+local function autotable(depth)
 
   local at = new_struct()
   setmetatable(at.subs, {
@@ -203,7 +204,7 @@ end
 -- for 'one' events, returns `true` when this worker is supposed to handle it
 local function mine_to_have(id, unique)
   local key = KEY_ONE .. tostring(unique)
-  local success, err = _dict:add(key, _pid)
+  local success, err = _dict:add(key, _pid, _unique_timeout)
 
   if success then return true end
 
@@ -515,6 +516,7 @@ _M.configure = function(opts)
     _pid = get_pid()
     --_dict = nil     -- this value can actually stay, because its shared
     _interval = nil
+    _unique_timeout = nil
     _callbacks = nil
     _wait_max = nil
     _wait_interval = nil
@@ -532,6 +534,14 @@ _M.configure = function(opts)
   local dict = ngx.shared[shm]
   if not dict then
     return nil, 'shm "' .. tostring(shm) .. '" not found'
+  end
+
+  local unique_timeout = opts.timeout or (_unique_timeout or DEFAULT_UNIQUE_TIMEOUT)
+  if type(unique_timeout) ~= "number" and unique_timeout ~= nil then
+    return nil, 'optional "timeout" option must be a number'
+  end
+  if unique_timeout <= 0 then
+    return nil, '"timeout" must be greater than 0'
   end
 
   local interval = opts.interval or (_interval or DEFAULT_INTERVAL)
@@ -562,6 +572,7 @@ _M.configure = function(opts)
   local old_interval = _interval
   _interval = interval
   _dict = dict
+  _unique_timeout = unique_timeout
   _wait_interval = wait_interval
   _wait_max = wait_max
   _last_event = _last_event or get_event_id()
