@@ -1,10 +1,8 @@
 local log = ngx.log
 local ERR = ngx.ERR
-local INFO = ngx.INFO
 local WARN = ngx.WARN
 local DEBUG = ngx.DEBUG
 local new_timer = ngx.timer.at
-local debug_mode = ngx.config.debug
 local tostring = tostring
 local ipairs = ipairs
 local pcall = pcall
@@ -109,30 +107,9 @@ local _callbacks = autotable(2)
 
 
 local _M = {
-  _VERSION = '0.3.1',
+  _VERSION = '0.3.2',
 }
 
-local function info(...)
-  log(INFO, "worker-events: ", ...)
-end
-
-local function warn(...)
-  log(WARN, "worker-events: ", ...)
-end
-
-local function errlog(...)
-  log(ERR, "worker-events: ", ...)
-end
-
-local debug = function() end
-if debug_mode then
-  debug = function(...)
-    -- print("debug mode: ", debug_mode)
-    if debug_mode then
-      log(DEBUG, "worker-events: ", ...)
-    end
-  end
-end
 
 -- gets current event id
 -- @return event_id
@@ -196,7 +173,7 @@ local function do_handlerlist(handler_list, source, event, data, pid)
           else
             d = tostring(data)
           end
-          errlog("event callback failed; source=",source,
+          log(ERR, "worker-events: event callback failed; source=",source,
                  ", event=", event,", pid=",pid, " error='", tostring(err),
                  "', data=", d)
         end
@@ -213,7 +190,7 @@ end
 
 
 local function do_event(source, event, data, pid)
-  debug("handling event; source=",source,
+  log(DEBUG, "worker-events: handling event; source=",source,
          ", event=",event,", pid=",pid,", data=",tostring(data))
 
   local list = _callbacks
@@ -233,10 +210,11 @@ local function mine_to_have(id, unique)
   if success then return true end
 
   if err == "exists"  then
-    debug("skipping event ",id," was handled by worker ",
+    log(DEBUG, "worker-events: skipping event ",id," was handled by worker ",
           _dict:get(key))
   else
-    errlog("cannot determine who handles event ",id,", dropping it: ",err)
+    log(ERR, "worker-events: cannot determine who handles event ", id,
+             ", dropping it: ", err)
   end
 end
 
@@ -245,7 +223,7 @@ local function do_event_json(id, json)
   local d, err
   d, err = cjson.decode(json)
   if not d then
-    return errlog("failed decoding json event data: ", err)
+    return log(ERR, "worker-events: failed decoding json event data: ", err)
   end
 
   if d.unique and not mine_to_have(id, d.unique) then return end
@@ -274,7 +252,7 @@ _M.post = function(source, event, data, unique)
   if not success then
     err = 'failed posting event "'..event..'" by "'..
           source..'"; '..tostring(err)
-    errlog(err)
+    log(ERR, "worker-events: ", err)
     return success, err
   end
 
@@ -316,8 +294,8 @@ _M.poll = function()
   end
 
   if not event_id then
-    local err = "failed to get current event id: "..tostring(err)
-    errlog(err)
+    local err = "failed to get current event id: " .. tostring(err)
+    log(ERR, "worker-events: ", err)
     return nil, err
   end
 
@@ -341,7 +319,7 @@ _M.poll = function()
     local err = cache_err[idx]
     while not data do
       if err then
-        errlog("Error fetching event data: ", err)
+        log(ERR, "worker-events: error fetching event data: ", err)
         break
       else
         -- just nil, so must wait for data to appear
@@ -367,13 +345,14 @@ _M.poll = function()
       local duration = now()-xtime
       _busy_polling = nil
       if duration>_timeout then
-        warn("processing event ",tostring(_last_event - count + idx),
+        log(WARN, "worker-events: processing event ",
+             tostring(_last_event - count + idx),
              " took "..duration.." seconds, longer than the 'timeout' value "..
              "for retaining event data, events might be dropped.")
       end
     else
-      errlog("dropping event; waiting for event data timed out, id: ",
-           _last_event - count + idx)
+      log(ERR, "worker-events: dropping event; waiting for event data ",
+           "timed out, id: ", _last_event - count + idx)
     end
   end
 
@@ -398,7 +377,7 @@ do_timer = function(premature)
         _M.post(_M.events._source, _M.events.stopping)
       end
       err = "failed to create timer: " .. tostring(err)
-      errlog(err)
+      log(ERR, "worker-events: ", err)
       return nil, err
     end
   end
