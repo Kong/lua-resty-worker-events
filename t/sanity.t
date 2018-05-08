@@ -371,6 +371,7 @@ init_worker_by_lua '
                 ", data=", data)
             end)
     local ok, err = we.configure{
+        timeout = 0.4,
         shm = "worker_events",
     }
     if not ok then
@@ -388,7 +389,10 @@ init_worker_by_lua '
             we.post("content_by_lua","request1","01234567890")
             we.post("content_by_lua","request2","01234567890", "unique_value")
             we.post("content_by_lua","request3","01234567890", "unique_value")
-            we.post("content_by_lua","request4","01234567890")
+            ngx.sleep(0.5) -- wait for unique timeout to expire
+            we.post("content_by_lua","request4","01234567890", "unique_value")
+            we.post("content_by_lua","request5","01234567890", "unique_value")
+            we.post("content_by_lua","request6","01234567890")
             ngx.print("hello world\\n")
 
         ';
@@ -413,7 +417,9 @@ worker-events: handler event;  source=content_by_lua, event=request1, pid=\d+, d
 worker-events: handling event; source=content_by_lua, event=request2, pid=\d+, data=01234567890
 worker-events: handler event;  source=content_by_lua, event=request2, pid=\d+, data=01234567890
 worker-events: handling event; source=content_by_lua, event=request4, pid=\d+, data=01234567890
-worker-events: handler event;  source=content_by_lua, event=request4, pid=\d+, data=01234567890$/
+worker-events: handler event;  source=content_by_lua, event=request4, pid=\d+, data=01234567890
+worker-events: handling event; source=content_by_lua, event=request6, pid=\d+, data=01234567890
+worker-events: handler event;  source=content_by_lua, event=request6, pid=\d+, data=01234567890$/
 --- timeout: 6
 
 
