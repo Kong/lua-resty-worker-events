@@ -1,7 +1,7 @@
-Name
-====
+lua-resty-worker-events
+=======================
 
-lua-resty-worker-events - Inter process events for Nginx worker processes
+Inter process events for Nginx worker processes
 
 Table of Contents
 =================
@@ -391,6 +391,8 @@ All rights reserved.
 
 History
 =======
+
+Note: please update version number in the code when releasing a new version!
 
 0.3.2, 11-Apr-2018
 
