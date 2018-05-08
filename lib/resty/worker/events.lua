@@ -106,7 +106,7 @@ local _callbacks = autotable(2)
 
 
 local _M = {
-  _VERSION = '0.3.2',
+  _VERSION = '0.3.3',
 }
 
 

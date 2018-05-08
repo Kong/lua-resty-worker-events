@@ -397,9 +397,9 @@ History
 
 Note: please update version number in the code when releasing a new version!
 
-x.x.x, xxx-May-2018
+0.3.3, 8-May-2018
 
-- fix: timouts in init phases, by removing timeout setting
+- fix: timeouts in init phases, by removing timeout setting, see issue #9
 
 0.3.2, 11-Apr-2018
 
