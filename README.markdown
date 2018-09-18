@@ -100,7 +100,7 @@ server. Communication is through a shared memory zone where event data will be s
 
 The order of events in all workers is __guaranteed__ to be the same.
 
-The workerprocess will setup a timer to check for events in the background. The
+The worker process will setup a timer to check for events in the background. The
 module follows a singleton pattern and hence runs once per worker. If staying
 up-to-date is important though, the interval can be set to a lesser frequency and a
 call to [poll](#poll) upon each request received makes sure everything is handled
