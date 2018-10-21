@@ -56,7 +56,7 @@ local DEFAULT_INTERVAL = 1
 local DEFAULT_WAIT_MAX = 0.5
 local DEFAULT_WAIT_INTERVAL = 0.010
 
--- creates a new level strcuture for the callback tree
+-- creates a new level structure for the callback tree
 local new_struct = function()
   return {
     weak_count = 0,
@@ -442,7 +442,7 @@ end
 -- Will remove both the weak and strong references.
 -- @param callback the eventhandler callback to remove
 -- @return `true` if it was removed, `false` if it was not in the list. If multiple
--- eventnames have been specified, `true` means at least 1 occurence was removed
+-- eventnames have been specified, `true` means at least 1 occurrence was removed
 _M.unregister = function(callback, source, ...)
   assert(type(callback) == "function", "expected function, got: "..
          type(callback))

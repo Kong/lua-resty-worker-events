@@ -256,7 +256,7 @@ already in a polling-loop, or `nil + error` if something went wrong.
 The `false` result generally happens when posting an event from an eventhandler. The
 eventhandler was called from `poll`, and when posting an event, the post methods will
 also call `poll` after posting the event, causing a loop. The `false` result simply
-means that the event was succesfully posted, but not handled yet, due to other
+means that the event was successfully posted, but not handled yet, due to other
 events ahead of it that need to be handled first.
 
 [Back to TOC](#table-of-contents)
