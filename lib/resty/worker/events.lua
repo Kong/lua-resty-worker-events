@@ -27,9 +27,9 @@ local _wait_max       -- how long (in seconds) to wait when we have an event id,
                       -- but no data, for the data to show up.
 local _wait_interval  -- interval between tries when event data is unavailable
 
-local dump = function(...)
-  ngx.log(ngx.DEBUG,"\027[31m", require("pl.pretty").write({...}),"\027[0m")
-end
+--local dump = function(...)
+--  ngx.log(ngx.DEBUG,"\027[31m", require("pl.pretty").write({...}),"\027[0m")
+--end
 
 do
   -- test whether xpcall is 5.2 compatible, and supports extra arguments
@@ -40,7 +40,7 @@ do
   if not xpcall_52 then
     -- No support for extra args, so need to wrap xpcall
     local _xpcall = xpcall
-    local unpack = unpack or table.unpack
+    local unpack = unpack or table.unpack   -- luacheck: ignore
     xpcall = function(f, eh, ...)
       local args = { n = select("#", ...), ...}
       return _xpcall(function()
