@@ -243,7 +243,7 @@ _M.post = function(source, event, data, unique)
   if type(source) ~= "string" or source == "" then
     return nil, "source is required"
   end
-  if type(event) ~= "string" or source == "" then
+  if type(event) ~= "string" or event == "" then
     return nil, "event is required"
   end
 
@@ -265,7 +265,7 @@ _M.post_local = function(source, event, data)
   if type(source) ~= "string" or source == "" then
     return nil, "source is required"
   end
-  if type(event) ~= "string" or source == "" then
+  if type(event) ~= "string" or event == "" then
     return nil, "event is required"
   end
 

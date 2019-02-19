@@ -397,6 +397,10 @@ History
 
 Note: please update version number in the code when releasing a new version!
 
+0.3.x, unreleased
+
+- fix: fixed two typos in variable names (edge cases)
+
 0.3.3, 8-May-2018
 
 - fix: timeouts in init phases, by removing timeout setting, see issue #9
