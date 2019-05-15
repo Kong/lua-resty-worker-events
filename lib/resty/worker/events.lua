@@ -278,18 +278,18 @@ end
 local _busy_polling
 
 -- poll for events and execute handlers
--- @return true when all is done, false if a loop is already running, or nil+error
+-- @return `"done"` when all is done, `"recursive"` if a loop is already running, or `nil+error`
 _M.poll = function()
   if _busy_polling then
     -- we're probably calling the `poll` method from an event
     -- handler (by posting an event from an event handler for example)
     -- so we cannot handle it here right now.
-    return false
+    return "recursive"
   end
 
   local event_id, err = get_event_id()
   if event_id == _last_event then
-    return true
+    return "done"
   end
 
   if not event_id then
@@ -354,12 +354,14 @@ end
 -- executes a polling loop, and reschedules the polling timer
 local do_timer
 do_timer = function(premature)
-  local ok, err
   if premature then
     _M.post(_M.events._source, _M.events.stopping)
   end
 
-  _M.poll()
+  local ok, err = _M.poll()
+  if not ok then
+    log(ERR, "worker-events: timer-poll returned: ", err)
+  end
 
   if _interval ~= 0 and not premature then
     ok, err = new_timer(_interval, do_timer)

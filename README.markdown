@@ -251,11 +251,11 @@ Will poll for new events and handle them all (call the registered callbacks). Th
 efficient, it will only check a single shared memory value and return immediately if no new events
 are available.
 
-The return value will be `true` when it handled all events, `false` if it was
+The return value will be `"done"` when it handled all events, `"recursive"` if it was
 already in a polling-loop, or `nil + error` if something went wrong.
-The `false` result generally happens when posting an event from an eventhandler. The
+The `"recursive"` result happens when posting an event from an eventhandler. The
 eventhandler was called from `poll`, and when posting an event, the post methods will
-also call `poll` after posting the event, causing a loop. The `false` result simply
+also call `poll` after posting the event, causing a loop. The `"recursive"` result simply
 means that the event was successfully posted, but not handled yet, due to other
 events ahead of it that need to be handled first.
 
@@ -397,8 +397,10 @@ History
 
 Note: please update version number in the code when releasing a new version!
 
-0.3.x, unreleased
+1.0.0, unreleased
 
+- BREAKING: the return values from `poll` (and hence also `post` and `post_local`)
+  changed to be more lua-ish, to be truthy when all is well.
 - fix: fixed two typos in variable names (edge cases)
 
 0.3.3, 8-May-2018
