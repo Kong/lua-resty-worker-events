@@ -1,5 +1,6 @@
 local log = ngx.log
 local ERR = ngx.ERR
+local WARN = ngx.WARN
 local DEBUG = ngx.DEBUG
 local new_timer = ngx.timer.at
 local tostring = tostring
@@ -26,6 +27,7 @@ local _last_event     -- event id of the last event handled
 local _wait_max       -- how long (in seconds) to wait when we have an event id,
                       -- but no data, for the data to show up.
 local _wait_interval  -- interval between tries when event data is unavailable
+local _shm_retry      -- retries for "no memory" shm fragmentation
 
 --local dump = function(...)
 --  ngx.log(ngx.DEBUG,"\027[31m", require("pl.pretty").write({...}),"\027[0m")
@@ -55,6 +57,7 @@ local DEFAULT_UNIQUE_TIMEOUT = 2
 local DEFAULT_INTERVAL = 1
 local DEFAULT_WAIT_MAX = 0.5
 local DEFAULT_WAIT_INTERVAL = 0.010
+local DEFAULT_SHM_RETRY = 5
 
 -- creates a new level structure for the callback tree
 local new_struct = function()
@@ -124,7 +127,7 @@ end
 
 -- posts a new event in shm
 local function post_event(source, event, data, unique)
-  local json, err, event_id, success
+  local json, err, event_id, success, retries
 
   json, err = cjson.encode({
     source = source,
@@ -139,10 +142,26 @@ local function post_event(source, event, data, unique)
   event_id, err = _dict:incr(KEY_LAST_ID, 1)
   if err then return event_id, err end
 
-  success, err = _dict:add(KEY_DATA..tostring(event_id), json)
-  if not success then return success, err end
+  retries = 0
+  while not success and retries <= _shm_retry do
+    success, err = _dict:add(KEY_DATA..tostring(event_id), json)
+    if success then
+      return event_id
 
-  return event_id
+    elseif err ~= "no memory" then
+      return success, err
+
+    elseif retries >= _shm_retry then
+      log(WARN, "worker-events: could not write to shm after ", retries + 1,
+                " tries (no memory), it is either fragmented or cannot ",
+                "allocate more memory, consider increasing ",
+                "'opts.shm_retry'")
+      return success, err
+    end
+
+    retries = retries + 1
+  end
+  -- unreachable
 end
 
 
@@ -507,6 +526,7 @@ end
 -- interval: interval to poll for events (in seconds)
 -- wait_interval : interval between two tries when an eventid is found, but no data
 -- wait_max: max time to wait for data when event id is found, before discarding
+-- shm_retry: how often to retry when the shm gives an "out of memory" when posting
 -- debug   : if true a value `_callbacks` is exported on the module table
 _M.configure = function(opts)
   assert(type(opts) == "table", "Expected a table, got "..type(opts))
@@ -522,6 +542,7 @@ _M.configure = function(opts)
     _callbacks = nil
     _wait_max = nil
     _wait_interval = nil
+    _shm_retry = nil
     started = nil
   end
 
@@ -571,12 +592,21 @@ _M.configure = function(opts)
     return nil, '"wait_max" must be greater than or equal to 0'
   end
 
+  local shm_retry = opts.shm_retry or (_shm_retry or DEFAULT_SHM_RETRY)
+  if type(shm_retry) ~= "number" and shm_retry ~= nil then
+    return nil, 'optional "shm_retry" option must be a number'
+  end
+  if shm_retry < 0 then
+    return nil, '"shm_retry" must be 0 or greater'
+  end
+
   local old_interval = _interval
   _interval = interval
   _dict = dict
   _unique_timeout = unique_timeout
   _wait_interval = wait_interval
   _wait_max = wait_max
+  _shm_retry = shm_retry
   _last_event = _last_event or get_event_id()
 
   if not started then

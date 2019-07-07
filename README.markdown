@@ -62,6 +62,7 @@ http {
 
             wait_interval = 0.010,  -- wait before retry fetching event data
             wait_max = 0.5,         -- max wait time before discarding event
+            shm_retry = 5,          -- retries for shm fragmentation (no memory)
         }
         if not ok then
             ngx.log(ngx.ERR, "failed to start event system: ", err)
@@ -143,6 +144,10 @@ Will initialize the event listener. The `opts` parameter is a Lua table with nam
 * `shm`: (required) name of the shared memory to use. Event data will not expire, so
   the module relies on the shm lru mechanism to evict old events from the shm. As such
   the shm should probably not be used for other purposes.
+* `shm_retry`: (optional) number of retries when the shm returns "no memory" on
+  posting an event, default 5. The "no memory" error occurs when there is memory
+  fragmentation in the shm. On each try more entries will be evicted from the shm,
+  until there is a large enough contiguous memory block available for the new event data.
 * `interval`: (optional) interval to poll for events (in seconds), default 1
 * `wait_interval`: (optional) interval between two tries when a new eventid is found, but the
   data is not available yet (due to asynchronous behaviour of the worker processes)
@@ -401,6 +406,8 @@ Note: please update version number in the code when releasing a new version!
 
 - BREAKING: the return values from `poll` (and hence also `post` and `post_local`)
   changed to be more lua-ish, to be truthy when all is well.
+- feature: new option `shm_retry` to fix "no memory" errors caused by memory
+  fragmentation in the shm when posting events.
 - fix: fixed two typos in variable names (edge cases)
 
 0.3.3, 8-May-2018
