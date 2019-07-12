@@ -49,7 +49,7 @@ __DATA__
         content_by_lua_block {
             local we = require "resty.worker.events"
             we.post("content_by_lua","request1","01234567890")
-            ngx.sleep(0.1)
+            ngx.sleep(1)
             ngx.say("hello world")
         }
     }
@@ -104,7 +104,7 @@ worker-events: handler event;  source=content_by_lua, event=request1, pid=\d+, d
         content_by_lua_block {
             local we = require "resty.worker.events"
             we.post_local("content_by_lua","request1","01234567890")
-            ngx.sleep(0.1)
+            ngx.sleep(1)
             ngx.say("hello world")
         }
     }
