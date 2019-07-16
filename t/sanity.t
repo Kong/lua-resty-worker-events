@@ -841,7 +841,7 @@ init_worker_by_lua '
             local we = require "resty.worker.events"
             local ok, err = we.configure{
                 shm = "worker_events",
-                shm_retry = 999,
+                shm_retries = 999,
             }
 
             -- fill the shm
@@ -850,11 +850,7 @@ init_worker_by_lua '
             end
 
             local ok, err = we.post("source", "event", ("y"):rep(1024):rep(500))
-            if ok then
-                ngx.say(ok)
-            else
-                ngx.say(err)
-            end
+            ngx.say(ok or err)
         ';
     }
 
