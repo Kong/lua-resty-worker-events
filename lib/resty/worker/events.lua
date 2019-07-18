@@ -19,6 +19,7 @@ local error = error
 local pairs = pairs
 local setmetatable = setmetatable
 local getmetatable = getmetatable
+local new_tab = require("table.new")
 local next = next
 
 -- event keys to shm
@@ -311,18 +312,17 @@ _M.poll = function()
     return nil, err
   end
 
-  local count = 0
-  local cache_data = {}
-  local cache_err = {}
+  local count = event_id - _last_event
+  local cache_data = new_tab(count, 0)
+  local cache_err = new_tab(count, 0)
   -- in case an event id has been published, but we're fetching it before
   -- its data was posted and we have to wait, we don't want the next
   -- event to timeout before we get to it, so go and cache what's
   -- available, to minimize lost data
-  while _last_event < event_id do
-    count = count + 1
+  for i = 1, count do
     _last_event = _last_event + 1
     --debug("fetching event", _last_event)
-    cache_data[count], cache_err[count] = get_event_data(_last_event)
+    cache_data[i], cache_err[i] = get_event_data(_last_event)
   end
 
   local expire = now() + _wait_max
