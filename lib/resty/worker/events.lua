@@ -1,3 +1,4 @@
+local ngx = ngx
 local log = ngx.log
 local ERR = ngx.ERR
 local DEBUG = ngx.DEBUG
@@ -11,6 +12,14 @@ local get_pid = ngx.worker.pid
 local now = ngx.now
 local sleep = ngx.sleep
 local traceback = debug.traceback
+local assert = assert
+local select = select
+local type = type
+local error = error
+local pairs = pairs
+local setmetatable = setmetatable
+local getmetatable = getmetatable
+local next = next
 
 -- event keys to shm
 local KEY_LAST_ID = "events-last"         -- ID of last event posted
