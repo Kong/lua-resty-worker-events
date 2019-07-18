@@ -9,7 +9,7 @@ use Cwd qw(cwd);
 
 #repeat_each(2);
 
-plan tests => repeat_each() * (blocks() * 6 - 5);
+plan tests => repeat_each() * (blocks() * 6 - 9);
 
 my $pwd = cwd();
 
@@ -810,3 +810,51 @@ ok
 something went wrong here!
 in function 'error_func'
 in function 'in_between'
+
+
+
+=== TEST 11: shm fragmentation
+--- http_config eval
+"$::HttpConfig"
+. q{
+upstream foo.com {
+    server 127.0.0.1:12354;
+}
+
+server {
+    listen 12354;
+    location = /status {
+        return 200;
+    }
+}
+
+lua_shared_dict worker_events 1m;
+init_worker_by_lua '
+    ngx.shared.worker_events:flush_all()
+';
+}
+--- config
+    location = /t {
+        access_log off;
+        content_by_lua '
+            ngx.shared.worker_events:flush_all()
+            local we = require "resty.worker.events"
+            local ok, err = we.configure{
+                shm = "worker_events",
+                shm_retries = 999,
+            }
+
+            -- fill the shm
+            for i = 1, 1500000 do
+                ngx.shared.worker_events:add(i, tostring(i))
+            end
+
+            local ok, err = we.post("source", "event", ("y"):rep(1024):rep(500))
+            ngx.say(ok or err)
+        ';
+    }
+
+--- request
+GET /t
+--- response_body
+done
