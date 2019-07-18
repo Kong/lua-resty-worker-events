@@ -25,8 +25,6 @@ run_tests();
 
 __DATA__
 
-
-
 === TEST 1: worker.events starting and stopping, with its own events
 --- SKIP
 --- http_config eval
@@ -135,16 +133,14 @@ init_worker_by_lua '
 --- config
     location = /t {
         access_log off;
-        content_by_lua '
-            ngx.sleep(0.1)
+        content_by_lua_block {
             local we = require "resty.worker.events"
             we.post("content_by_lua","request1","01234567890")
             we.post_local("content_by_lua","request2","01234567890")
             we.post("content_by_lua","request3","01234567890")
-            ngx.print("hello world\\n")
+            ngx.say("hello world")
             ngx.sleep(0.2) -- wait for the polling interval
-
-        ';
+        }
     }
 
 --- request
@@ -222,7 +218,7 @@ init_worker_by_lua '
 --- config
     location = /t {
         access_log off;
-        content_by_lua '
+        content_by_lua_block {
             local cjson = require("cjson.safe").new()
             ngx.sleep(0.1)
             local we = require "resty.worker.events"
@@ -234,10 +230,9 @@ init_worker_by_lua '
                   cjson.encode({ source="hello", event="4", data="there-4", pid=123456}), 2))
 
             we.post("content_by_lua","request3","01234567890")
-            ngx.print("hello world\\n")
+            ngx.say("hello world")
             ngx.sleep(0.2) -- wait for the polling interval
-
-        ';
+        }
     }
 
 --- request
