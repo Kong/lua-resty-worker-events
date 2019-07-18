@@ -393,7 +393,7 @@ Copyright and License
 
 This module is licensed under the [Apache 2.0 license](https://opensource.org/licenses/Apache-2.0).
 
-Copyright (C) 2016, by Thijs Schreijer, Kong Inc.
+Copyright (C) 2016-2019, by Thijs Schreijer, Kong Inc.
 
 All rights reserved.
 
@@ -405,7 +405,7 @@ History
 
 Note: please update version number in the code when releasing a new version!
 
-1.0.0, unreleased
+1.0.0, 18-July-2019
 
 - BREAKING: the return values from `poll` (and hence also `post` and `post_local`)
   changed to be more lua-ish, to be truthy when all is well.
