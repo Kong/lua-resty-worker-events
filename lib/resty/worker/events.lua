@@ -66,7 +66,8 @@ local new_struct = function()
     weak_list = setmetatable({},{ __mode = "v"}),
     strong_count = 0,
     strong_list = {},
-    subs = {} -- nested sub tables; source based, and event based (initial one is global)
+    subs = {} -- nested sub tables; source based, and event based
+              -- (initial one is global)
   }
 end
 -- metatable that auto creates sub tables if a key is not found
@@ -85,9 +86,9 @@ local autotable__index = function(self, key)
 end
 
 --- Creates a new auto-table.
--- @param depth (optional, default 1) how deep to auto-generate tables. The last
--- table in the chain generated will itself not be an auto-table. If `depth == 0` then
--- there is no limit.
+-- @param depth (optional, default 1) how deep to auto-generate tables.
+-- The last table in the chain generated will itself not be an auto-table.
+-- If `depth == 0` then there is no limit.
 -- @param mode (optional) set the weak table behavior
 -- @return new auto-table
 local function autotable(depth)
@@ -210,7 +211,8 @@ end
 
 local function do_event(source, event, data, pid)
   log(DEBUG, "worker-events: handling event; source=",source,
-         ", event=",event,", pid=",pid) --,", data=",tostring(data))  -- do not log potentially private data
+      ", event=", event, ", pid=", pid) --,", data=",tostring(data))
+      -- do not log potentially private data, hence skip 'data'
 
   local list = _callbacks
   do_handlerlist(list, source, event, data, pid)
@@ -254,24 +256,26 @@ end
 -- the newly posted event.
 -- @param source string identifying the event source
 -- @param event string identifying the event name
--- @param data the data for the event, anything as long as it can be used with cjson
--- @param unique a unique identifier for this event, providing it will make only 1
+-- @param data the data for the event, anything as long as it can be used
+-- with cjson
+-- @param unique a unique identifier for this event, providing it will make
+-- only 1
 -- worker execute the event
 -- @return true if the event was successfully posted, nil+error if there was an
 -- error posting the event
 _M.post = function(source, event, data, unique)
-
   if type(source) ~= "string" or source == "" then
     return nil, "source is required"
   end
+
   if type(event) ~= "string" or event == "" then
     return nil, "event is required"
   end
 
   local success, err = post_event(source, event, data, unique)
   if not success then
-    err = 'failed posting event "'..event..'" by "'..
-          source..'"; '..tostring(err)
+    err = 'failed posting event "' .. event .. '" by "' ..
+          source .. '"; ' .. tostring(err)
     log(ERR, "worker-events: ", err)
     return nil, err
   end
@@ -300,7 +304,8 @@ end
 local _busy_polling
 
 -- poll for events and execute handlers
--- @return `"done"` when all is done, `"recursive"` if a loop is already running, or `nil+error`
+-- @return `"done"` when all is done, `"recursive"` if a loop is already
+-- running, or `nil+error`
 _M.poll = function()
   if _busy_polling then
     -- we're probably calling the `poll` method from an event
@@ -352,7 +357,8 @@ _M.poll = function()
         -- 'context' (eg. 'init_worker'), then the pcall fails. We're not
         -- checking the result, but will effectively be doing a busy-wait
         -- by looping until it hits the time-out, or the data is retrieved
-        _busy_polling = true  -- need to flag because `sleep` will yield control and another coroutine might re-enter
+        _busy_polling = true  -- need to flag because `sleep` will yield control
+                              -- and another coroutine might re-enter
         pcall(sleep, _wait_interval)
         _busy_polling = nil
         data, err = get_event_data(_last_event - count + idx)
@@ -360,12 +366,13 @@ _M.poll = function()
     end
 
     if data then
-      _busy_polling = true -- need to flag to make sure the eventhandlers do not re-enter
+      _busy_polling = true -- need to flag to make sure the eventhandlers
+                           -- do not re-enter
       do_event_json(_last_event - count + idx, data)
       _busy_polling = nil
     else
       log(ERR, "worker-events: dropping event; waiting for event data ",
-           "timed out, id: ", _last_event - count + idx)
+          "timed out, id: ", _last_event - count + idx)
     end
   end
 
@@ -465,8 +472,9 @@ end
 -- unregisters an event handler callback.
 -- Will remove both the weak and strong references.
 -- @param callback the eventhandler callback to remove
--- @return `true` if it was removed, `false` if it was not in the list. If multiple
--- eventnames have been specified, `true` means at least 1 occurrence was removed
+-- @return `true` if it was removed, `false` if it was not in the list.
+-- If multiple eventnames have been specified, `true` means at least 1
+-- occurrence was removed
 _M.unregister = function(callback, source, ...)
   assert(type(callback) == "function", "expected function, got: "..
          type(callback))
@@ -527,7 +535,8 @@ end
 -- shm     : name of the shared memory to use
 -- timeout : timeout of event data stored in shm (in seconds)
 -- interval: interval to poll for events (in seconds)
--- wait_interval : interval between two tries when an eventid is found, but no data
+-- wait_interval : interval between two tries when an eventid is found,
+-- but no data.
 -- wait_max: max time to wait for data when event id is found, before discarding
 -- shm_retries: how often to retry when the shm gives an "out of memory" when posting
 -- debug   : if true a value `_callbacks` is exported on the module table
@@ -562,7 +571,8 @@ _M.configure = function(opts)
     return nil, 'shm "' .. tostring(shm) .. '" not found'
   end
 
-  local unique_timeout = opts.timeout or (_unique_timeout or DEFAULT_UNIQUE_TIMEOUT)
+  local unique_timeout = opts.timeout or
+                         (_unique_timeout or DEFAULT_UNIQUE_TIMEOUT)
   if type(unique_timeout) ~= "number" and unique_timeout ~= nil then
     return nil, 'optional "timeout" option must be a number'
   end
@@ -644,8 +654,8 @@ end
 -- an unknown event error.
 -- @param source string with the event source name
 -- @param ... vararg, strings, with all events available
--- @return events table where key `_source` contains the event source name and all
--- other eventnames are in the hashtable by their own name.
+-- @return events table where key `_source` contains the event source name and
+-- all other eventnames are in the hashtable by their own name.
 _M.event_list = function(source, ...)
   local events = { _source = source }
   for _, event in pairs({...}) do
