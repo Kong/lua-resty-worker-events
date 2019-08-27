@@ -10,6 +10,7 @@ Table of Contents
 * [Status](#status)
 * [Synopsis](#synopsis)
 * [Description](#description)
+* [Troubleshooting](#troubleshooting)
 * [Methods](#methods)
     * [configure](#configure)
     * [configured](#configured)
@@ -128,6 +129,42 @@ This module itself will fire two events with `source="resty-worker-events"`;
 
 See [event_list](#event_list) for using events without hardcoded magic
 values/strings.
+
+
+Troubleshooting
+================
+
+To properly size the shm, it is important to understand how it is being used.
+Event data is stored in the shm to pass it to the other workers. As such there
+are 2 types of entries in the shm:
+
+1. events that are to be executed by only a single worker (see the
+   `unique` parameter of the `post` method). These entries get a `ttl` in the
+   shm and will hence expire.
+2. all other events (except local events which do not use the SHM). In these
+   cases there is no `ttl` set.
+
+The result of the above is that the SHM will always be full! so that is not a
+metric to investigate at.
+
+How to prevent problems:
+
+* the SHM size must at least be a multiple of the maximum payload expected. It
+  must be able to cater for all the events that might be send within one
+  `interval` (see `configure`).
+* `no memory` errors *cannot* be resolved by making the SHM bigger. The only way
+  to resolve those is by increasing the `shm_retries` option passed to
+  `configure`. This is because the error is due to fragmentation and not a lack
+  of memory.
+* the `waiting for event data timed out` error happens if event data gets
+  evicted before all the workers got to deal with it. This can happen if
+  there is a burst of (large-payload) events. To resolve these:
+
+    * try to avoid big event payloads
+    * use a smaller `interval`, so workers check for (and deal with) events
+      more frequently (see `interval` option as passed to `configure`)
+    * increase the SHM size, such that it can hold all the event data that
+      might be send within 1 interval.
 
 
 Methods
@@ -405,6 +442,11 @@ History
 =======
 
 Note: please update version number in the code when releasing a new version!
+
+1.0.1, unreleased
+
+- fix: improved logging in case of failure to write to shm (add payload size
+  and payload for troubleshooting purposes)
 
 1.0.0, 18-July-2019
 

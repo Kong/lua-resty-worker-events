@@ -155,7 +155,9 @@ local function post_event(source, event, data, unique)
       log(WARN, "worker-events: could not write to shm after ", retries + 1,
                 " tries (no memory), it is either fragmented or cannot ",
                 "allocate more memory, consider increasing ",
-                "'opts.shm_retries' or increasing the shm size")
+                "'opts.shm_retries'. Payload size: ", #json, " bytes.")
+      log(DEBUG, "worker-events: failed event data, source: '", tostring(source),
+                "', event: '", tostring(event), "', data: ", cjson.encode(data))
       return success, err
     end
 
