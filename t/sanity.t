@@ -155,15 +155,15 @@ hello world
 [alert]
 [warn]
 dropping event: waiting for event data timed out
---- grep_error_log eval: qr/worker-events: .*?, data=.*/
+--- grep_error_log eval: qr/worker-events: .*/
 --- grep_error_log_out eval
-qr/^worker-events: handling event; source=resty-worker-events, event=started, pid=\d+, data=nil
+qr/^worker-events: handling event; source=resty-worker-events, event=started, pid=\d+
 worker-events: handler event;  source=resty-worker-events, event=started, pid=\d+, data=nil
-worker-events: handling event; source=content_by_lua, event=request1, pid=\d+, data=01234567890
+worker-events: handling event; source=content_by_lua, event=request1, pid=\d+
 worker-events: handler event;  source=content_by_lua, event=request1, pid=\d+, data=01234567890
-worker-events: handling event; source=content_by_lua, event=request2, pid=nil, data=01234567890
+worker-events: handling event; source=content_by_lua, event=request2, pid=nil
 worker-events: handler event;  source=content_by_lua, event=request2, pid=nil, data=01234567890
-worker-events: handling event; source=content_by_lua, event=request3, pid=\d+, data=01234567890
+worker-events: handling event; source=content_by_lua, event=request3, pid=\d+
 worker-events: handler event;  source=content_by_lua, event=request3, pid=\d+, data=01234567890$/
 --- timeout: 6
 
@@ -246,23 +246,23 @@ hello world
 [alert]
 [warn]
 dropping event: waiting for event data timed out
---- grep_error_log eval: qr/worker-events: .*?, data=.*/
+--- grep_error_log eval: qr/worker-events: .*/
 --- grep_error_log_out eval
-qr/^worker-events: handling event; source=resty-worker-events, event=started, pid=\d+, data=nil
+qr/^worker-events: handling event; source=resty-worker-events, event=started, pid=\d+
 worker-events: handler event;  source=resty-worker-events, event=started, pid=\d+, data=nil
-worker-events: handling event; source=hello, event=1, pid=123456, data=there-1
+worker-events: handling event; source=hello, event=1, pid=123456
 worker-events: handler event;  source=hello, event=1, pid=123456, data=there-1
-worker-events: handling event; source=hello, event=2, pid=123456, data=there-2
+worker-events: handling event; source=hello, event=2, pid=123456
 worker-events: handler event;  source=hello, event=2, pid=123456, data=there-2
-worker-events: handling event; source=hello, event=3, pid=123456, data=there-3
+worker-events: handling event; source=hello, event=3, pid=123456
 worker-events: handler event;  source=hello, event=3, pid=123456, data=there-3
-worker-events: handling event; source=content_by_lua, event=request1, pid=\d+, data=01234567890
+worker-events: handling event; source=content_by_lua, event=request1, pid=\d+
 worker-events: handler event;  source=content_by_lua, event=request1, pid=\d+, data=01234567890
-worker-events: handling event; source=content_by_lua, event=request2, pid=nil, data=01234567890
+worker-events: handling event; source=content_by_lua, event=request2, pid=nil
 worker-events: handler event;  source=content_by_lua, event=request2, pid=nil, data=01234567890
-worker-events: handling event; source=hello, event=4, pid=123456, data=there-4
+worker-events: handling event; source=hello, event=4, pid=123456
 worker-events: handler event;  source=hello, event=4, pid=123456, data=there-4
-worker-events: handling event; source=content_by_lua, event=request3, pid=\d+, data=01234567890
+worker-events: handling event; source=content_by_lua, event=request3, pid=\d+
 worker-events: handler event;  source=content_by_lua, event=request3, pid=\d+, data=01234567890$/
 --- timeout: 6
 
@@ -332,16 +332,16 @@ GET /t
 hello world
 --- no_error_log
 [alert]
---- grep_error_log eval: qr/worker-events: .*?, data=.*|worker-events: dropping event; waiting for event data timed out.*/
+--- grep_error_log eval: qr/worker-events: .*|worker-events: dropping event; waiting for event data timed out.*/
 --- grep_error_log_out eval
-qr/^worker-events: handling event; source=resty-worker-events, event=started, pid=\d+, data=nil
+qr/^worker-events: handling event; source=resty-worker-events, event=started, pid=\d+
 worker-events: handler event;  source=resty-worker-events, event=started, pid=\d+, data=nil
-worker-events: handling event; source=content_by_lua, event=request1, pid=\d+, data=01234567890
+worker-events: handling event; source=content_by_lua, event=request1, pid=\d+
 worker-events: handler event;  source=content_by_lua, event=request1, pid=\d+, data=01234567890
-worker-events: handling event; source=content_by_lua, event=request2, pid=\d+, data=01234567890
+worker-events: handling event; source=content_by_lua, event=request2, pid=\d+
 worker-events: handler event;  source=content_by_lua, event=request2, pid=\d+, data=01234567890
 worker-events: dropping event; waiting for event data timed out, id: 4.*
-worker-events: handling event; source=content_by_lua, event=request3, pid=\d+, data=01234567890
+worker-events: handling event; source=content_by_lua, event=request3, pid=\d+
 worker-events: handler event;  source=content_by_lua, event=request3, pid=\d+, data=01234567890$/
 --- timeout: 6
 
@@ -408,17 +408,17 @@ hello world
 [alert]
 [warn]
 dropping event: waiting for event data timed out
---- grep_error_log eval: qr/worker-events: .*?, data=.*/
+--- grep_error_log eval: qr/worker-events: .*?, pid=.*/
 --- grep_error_log_out eval
-qr/^worker-events: handling event; source=resty-worker-events, event=started, pid=\d+, data=nil
+qr/^worker-events: handling event; source=resty-worker-events, event=started, pid=\d+
 worker-events: handler event;  source=resty-worker-events, event=started, pid=\d+, data=nil
-worker-events: handling event; source=content_by_lua, event=request1, pid=\d+, data=01234567890
+worker-events: handling event; source=content_by_lua, event=request1, pid=\d+
 worker-events: handler event;  source=content_by_lua, event=request1, pid=\d+, data=01234567890
-worker-events: handling event; source=content_by_lua, event=request2, pid=\d+, data=01234567890
+worker-events: handling event; source=content_by_lua, event=request2, pid=\d+
 worker-events: handler event;  source=content_by_lua, event=request2, pid=\d+, data=01234567890
-worker-events: handling event; source=content_by_lua, event=request4, pid=\d+, data=01234567890
+worker-events: handling event; source=content_by_lua, event=request4, pid=\d+
 worker-events: handler event;  source=content_by_lua, event=request4, pid=\d+, data=01234567890
-worker-events: handling event; source=content_by_lua, event=request6, pid=\d+, data=01234567890
+worker-events: handling event; source=content_by_lua, event=request6, pid=\d+
 worker-events: handler event;  source=content_by_lua, event=request6, pid=\d+, data=01234567890$/
 --- timeout: 6
 
@@ -480,14 +480,14 @@ hello world
 [alert]
 [warn]
 dropping event: waiting for event data timed out
---- grep_error_log eval: qr/worker-events: .*?, data=.*|worker-events: skipping event \d+ was handled by worker \d+/
+--- grep_error_log eval: qr/worker-events: .*?, pid=.*|worker-events: skipping event \d+ was handled by worker \d+/
 --- grep_error_log_out eval
-qr/^worker-events: handling event; source=resty-worker-events, event=started, pid=\d+, data=nil
+qr/^worker-events: handling event; source=resty-worker-events, event=started, pid=\d+
 worker-events: handler event;  source=resty-worker-events, event=started, pid=\d+, data=nil
-worker-events: handling event; source=content_by_lua, event=request1, pid=\d+, data=01234567890
+worker-events: handling event; source=content_by_lua, event=request1, pid=\d+
 worker-events: handler event;  source=content_by_lua, event=request1, pid=\d+, data=01234567890
 worker-events: skipping event 3 was handled by worker 666
-worker-events: handling event; source=content_by_lua, event=request3, pid=\d+, data=01234567890
+worker-events: handling event; source=content_by_lua, event=request3, pid=\d+
 worker-events: handler event;  source=content_by_lua, event=request3, pid=\d+, data=01234567890$/
 --- timeout: 6
 
@@ -575,44 +575,44 @@ hello world
 [alert]
 [warn]
 dropping event: waiting for event data timed out
---- grep_error_log eval: qr/worker-events: .*?, data=.*/
+--- grep_error_log eval: qr/worker-events: .*/
 --- grep_error_log_out eval
-qr/^worker-events: handling event; source=resty-worker-events, event=started, pid=\d+, data=nil
+qr/^worker-events: handling event; source=resty-worker-events, event=started, pid=\d+
 worker-events: handler event;  source=resty-worker-events, event=started, pid=\d+, data=nil, callback=global
-worker-events: handling event; source=content_by_lua, event=request1, pid=\d+, data=123
+worker-events: handling event; source=content_by_lua, event=request1, pid=\d+
 worker-events: handler event;  source=content_by_lua, event=request1, pid=\d+, data=123, callback=global
 worker-events: handler event;  source=content_by_lua, event=request1, pid=\d+, data=123, callback=source
 worker-events: handler event;  source=content_by_lua, event=request1, pid=\d+, data=123, callback=event12
-worker-events: handling event; source=content_by_lua, event=request2, pid=\d+, data=123
+worker-events: handling event; source=content_by_lua, event=request2, pid=\d+
 worker-events: handler event;  source=content_by_lua, event=request2, pid=\d+, data=123, callback=global
 worker-events: handler event;  source=content_by_lua, event=request2, pid=\d+, data=123, callback=source
 worker-events: handler event;  source=content_by_lua, event=request2, pid=\d+, data=123, callback=event12
-worker-events: handling event; source=content_by_lua, event=request3, pid=\d+, data=123
+worker-events: handling event; source=content_by_lua, event=request3, pid=\d+
 worker-events: handler event;  source=content_by_lua, event=request3, pid=\d+, data=123, callback=global
 worker-events: handler event;  source=content_by_lua, event=request3, pid=\d+, data=123, callback=source
 worker-events: handler event;  source=content_by_lua, event=request3, pid=\d+, data=123, callback=event3
-worker-events: handling event; source=content_by_lua, event=request1, pid=\d+, data=124
+worker-events: handling event; source=content_by_lua, event=request1, pid=\d+
 worker-events: handler event;  source=content_by_lua, event=request1, pid=\d+, data=124, callback=source
 worker-events: handler event;  source=content_by_lua, event=request1, pid=\d+, data=124, callback=event12
-worker-events: handling event; source=content_by_lua, event=request2, pid=\d+, data=124
+worker-events: handling event; source=content_by_lua, event=request2, pid=\d+
 worker-events: handler event;  source=content_by_lua, event=request2, pid=\d+, data=124, callback=source
 worker-events: handler event;  source=content_by_lua, event=request2, pid=\d+, data=124, callback=event12
-worker-events: handling event; source=content_by_lua, event=request3, pid=\d+, data=124
+worker-events: handling event; source=content_by_lua, event=request3, pid=\d+
 worker-events: handler event;  source=content_by_lua, event=request3, pid=\d+, data=124, callback=source
 worker-events: handler event;  source=content_by_lua, event=request3, pid=\d+, data=124, callback=event3
-worker-events: handling event; source=content_by_lua, event=request1, pid=\d+, data=125
+worker-events: handling event; source=content_by_lua, event=request1, pid=\d+
 worker-events: handler event;  source=content_by_lua, event=request1, pid=\d+, data=125, callback=event12
-worker-events: handling event; source=content_by_lua, event=request2, pid=\d+, data=125
+worker-events: handling event; source=content_by_lua, event=request2, pid=\d+
 worker-events: handler event;  source=content_by_lua, event=request2, pid=\d+, data=125, callback=event12
-worker-events: handling event; source=content_by_lua, event=request3, pid=\d+, data=125
+worker-events: handling event; source=content_by_lua, event=request3, pid=\d+
 worker-events: handler event;  source=content_by_lua, event=request3, pid=\d+, data=125, callback=event3
-worker-events: handling event; source=content_by_lua, event=request1, pid=\d+, data=126
-worker-events: handling event; source=content_by_lua, event=request2, pid=\d+, data=126
-worker-events: handling event; source=content_by_lua, event=request3, pid=\d+, data=126
+worker-events: handling event; source=content_by_lua, event=request1, pid=\d+
+worker-events: handling event; source=content_by_lua, event=request2, pid=\d+
+worker-events: handling event; source=content_by_lua, event=request3, pid=\d+
 worker-events: handler event;  source=content_by_lua, event=request3, pid=\d+, data=126, callback=event3
-worker-events: handling event; source=content_by_lua, event=request1, pid=\d+, data=127
-worker-events: handling event; source=content_by_lua, event=request2, pid=\d+, data=127
-worker-events: handling event; source=content_by_lua, event=request3, pid=\d+, data=127$/
+worker-events: handling event; source=content_by_lua, event=request1, pid=\d+
+worker-events: handling event; source=content_by_lua, event=request2, pid=\d+
+worker-events: handling event; source=content_by_lua, event=request3, pid=\d+$/
 --- timeout: 6
 
 

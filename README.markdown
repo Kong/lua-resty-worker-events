@@ -445,7 +445,9 @@ Note: please update version number in the code when releasing a new version!
 1.0.1, unreleased
 
 - fix: improved logging in case of failure to write to shm (add payload size
-  and payload for troubleshooting purposes)
+  for troubleshooting purposes)
+- fix: do not log the payload anymore, since it might expose sensitive data
+  through the logs
 
 1.0.0, 18-July-2019
 
