@@ -151,7 +151,8 @@ Will initialize the event listener. The `opts` parameter is a Lua table with nam
   "no memory" error is returned. Retrying the insertion triggers the eviction phase
   several times, increasing the memory available as well as the probability of finding a
   large enough contiguous memory block available for the new event data.
-* `interval`: (optional) interval to poll for events (in seconds), default 1
+* `interval`: (optional) interval to poll for events (in seconds), default 1. Set to 0 to
+  disable polling.
 * `wait_interval`: (optional) interval between two tries when a new eventid is found, but the
   data is not available yet (due to asynchronous behaviour of the worker processes)
 * `wait_max`: (optional) max time to wait for data when event id is found, before discarding
