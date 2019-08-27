@@ -22,6 +22,8 @@ local KEY_ONE     = "events-one:"         -- key for 'one' events check
 local _dict           -- the shared dictionary to use
 local _unique_timeout -- expire time for unique data posted in shm (seconds)
 local _interval       -- polling interval (in seconds)
+local _burst_interval -- interval in "burst" mode (also indicating burst-mode)
+local _burst_limit     -- max events per interval in burst mode
 local _pid = get_pid()
 local _last_event     -- event id of the last event handled
 local _wait_max       -- how long (in seconds) to wait when we have an event id,
@@ -125,6 +127,45 @@ local function get_event_data(event_id)
   return _dict:get(KEY_DATA..tostring(event_id))
 end
 
+local check_burst_mode
+do
+  local burst_end = now()
+  local burst_count = 0
+
+  -- when in burst mode, limit the number of events per interval, wait
+  -- until we're allowed to post
+  function check_burst_mode()
+    local current_time = now()
+
+    if current_time >= burst_end then
+      -- current burst ended, start a new one
+      burst_end = current_time + (_burst_interval or 0)  -- the "or 0" is to prevent race conditions if it gets reset meanwhile
+      burst_count = 1 -- current event being posted
+      return
+    end
+
+    if burst_count < _burst_limit then
+      -- we're within the burst, and haven't hit our limit yet
+      burst_count = burst_count + 1
+      return
+    end
+
+    -- wait for end of burst (+1 ms to be sure)
+    log(WARN, "worker-events: hitting burst-mode limit")
+    local ok = pcall(sleep, burst_end - current_time + 0.001)
+    if not ok then
+      -- can't yield, so nothing to do but to allow bypassing the limit...
+      log(WARN, "worker-events: cannot maintain burst-mode from a ",
+                "non-yieldable context, posting anyway")
+      burst_count = burst_count + 1
+      return
+    end
+
+    -- retry, burst period is over now
+    return check_burst_mode()
+  end
+end
+
 -- posts a new event in shm
 local function post_event(source, event, data, unique)
   local json, err, event_id, success, retries
@@ -137,6 +178,10 @@ local function post_event(source, event, data, unique)
     pid = _pid,
   })
   if not json then return json, err end
+
+  if _burst_interval then
+    check_burst_mode()
+  end
 
   _dict:add(KEY_LAST_ID, 0)
   event_id, err = _dict:incr(KEY_LAST_ID, 1)
@@ -384,7 +429,7 @@ do_timer = function(premature)
   end
 
   if _interval ~= 0 and not premature then
-    ok, err = new_timer(_interval, do_timer)
+    ok, err = new_timer(_burst_interval or _interval, do_timer)
     if not ok then
       if err == "process exiting" then
         _M.post(_M.events._source, _M.events.stopping)
@@ -656,9 +701,67 @@ _M.event_list = function(source, ...)
   })
 end
 
+
+local function set_burst_mode(interval, limit)
+  _burst_interval = interval
+  _burst_limit = limit
+  return true
+end
+
+local function burst_event_handler(data, event)
+  if event == _M.events.start_burst then
+    set_burst_mode(data.interval, data.limit)
+
+  elseif event == _M.events.stop_burst then
+    set_burst_mode(nil, nil)
+
+  else
+    error("received a bad event: " .. tostring(event))
+  end
+end
+
+--- Enables burst mode.
+-- Will wait long enough for all workers to pick up the change, before
+-- returning.
+--
+-- NOTE: only call this from a yieldable context, since it will call `ngx.sleep`.
+-- @param interval polling interval in busrt mode (seconds)
+-- @param limit max number of events to emit per interval.
+-- @param true, or nil+error
+_M.enable_burst_mode = function(interval, limit)
+  if _interval == 0 then
+    return nil, "cannot enable burst mode if configured 'interval = 0'"
+  end
+  if interval <= 0 then
+    return nil, "interval must be greater than 0"
+  end
+  set_burst_mode(interval, limit)
+  _M.post(_M.events._source, _M.events.start_burst)
+  -- must wait for other workers to have dealt with the burst-enabling event
+  -- before we can go off and start the burst of events
+  sleep(_interval)
+  return true
+end
+
+--- Disables burst mode.
+-- Removes the event limit and restores the original polling interval.
+-- @return true
+_M.disable_burst_mode = function()
+  set_burst_mode(nil, nil)
+  _M.post(_M.events._source, _M.events.stop_burst)
+  return true
+end
+
+
 _M.events = _M.event_list(
   "resty-worker-events",      -- event source for own events
+  "start_burst",              -- event indicating burst mode start
+  "stop_burst",               -- event indicating burst mode stop
   "started",                  -- event when started
   "stopping")                 -- event when stopping
+
+-- register burst mode event handler
+_M.register(burst_event_handler, _M.events._source,
+            _M.events.start_burst, _M.events.stop_burst)
 
 return _M
