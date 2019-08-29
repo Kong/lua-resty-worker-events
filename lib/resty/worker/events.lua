@@ -57,7 +57,7 @@ local DEFAULT_UNIQUE_TIMEOUT = 2
 local DEFAULT_INTERVAL = 1
 local DEFAULT_WAIT_MAX = 0.5
 local DEFAULT_WAIT_INTERVAL = 0.010
-local DEFAULT_SHM_RETRIES = 5
+local DEFAULT_SHM_RETRIES = 999
 
 -- creates a new level structure for the callback tree
 local new_struct = function()

@@ -63,7 +63,7 @@ http {
 
             wait_interval = 0.010,  -- wait before retry fetching event data
             wait_max = 0.5,         -- max wait time before discarding event
-            shm_retries = 5,        -- retries for shm fragmentation (no memory)
+            shm_retries = 999,      -- retries for shm fragmentation (no memory)
         }
         if not ok then
             ngx.log(ngx.ERR, "failed to start event system: ", err)
@@ -182,7 +182,7 @@ Will initialize the event listener. The `opts` parameter is a Lua table with nam
   the module relies on the shm lru mechanism to evict old events from the shm. As such
   the shm should probably not be used for other purposes.
 * `shm_retries`: (optional) number of retries when the shm returns "no memory" on posting
-  an event, default 5. Each time there is an insertion attempt and no memory is available
+  an event, default 999. Each time there is an insertion attempt and no memory is available
   (either no space is available or the memory is available but fragmented), "up to tens"
   of old entries are evicted. After that, if there's still no memory available, the
   "no memory" error is returned. Retrying the insertion triggers the eviction phase
@@ -442,12 +442,13 @@ History
 
 Note: please update version number in the code when releasing a new version!
 
-1.0.1, unreleased
+1.1.0, unreleased
 
 - fix: improved logging in case of failure to write to shm (add payload size
   for troubleshooting purposes)
 - fix: do not log the payload anymore, since it might expose sensitive data
   through the logs
+- change: updated `shm_retries` default to 999
 
 1.0.0, 18-July-2019
 
