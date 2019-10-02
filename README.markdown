@@ -44,7 +44,7 @@ http {
     # the size depends on the number of event to handle:
     lua_shared_dict process_events 1m;
 
-    init_worker_by_lua_block {
+    init_by_lua_block {
         local ev = require "resty.worker.events"
 
         local handler = function(data, event, source, pid)
@@ -176,7 +176,15 @@ configure
 ---------
 `syntax: success, err = events.configure(opts)`
 
-Will initialize the event listener. The `opts` parameter is a Lua table with named options
+Will initialize the event listener. This should typically be called from the
+`init_by_lua` handler, because it will make sure all workers start with the
+first event. In case of a reload of the system (starting new and stopping old
+workers) past events will not be replayed. And because the order in which
+workers reload cannot be guaranteed, also the event start cannot be guaranteed.
+So if some sort of state is derived from the events you have to manage that
+state separately.
+
+The `opts` parameter is a Lua table with named options:
 
 * `shm`: (required) name of the shared memory to use. Event data will not expire, so
   the module relies on the shm lru mechanism to evict old events from the shm. As such
