@@ -327,10 +327,8 @@ the other workers will ignore it. Also any follow up events with the same `uniqu
 value will be ignored (for the `timeout` period specified to [configure](#configure)).
 The process executing the event will not necessarily be the process posting the event.
 
-Before returning, it will call [poll](#poll) to handle all events up to and including the newly posted
-event. Check the return value to make sure it completed, see `poll`.
-
-The return value will be the result from `poll`.
+The return value will be `true` when the event was successfully posted or
+`nil + error` in case of failure.
 
 *Note*: the worker process sending the event, will also receive the event! So if
 the eventsource will also act upon the event, it should not do so from the event
@@ -342,13 +340,12 @@ post_local
 ----------
 `syntax: success, err = events.post_local(source, event, data)`
 
-The same as [post](#post) except that the event will be local to the worker process, it will not
-be broadcasted to other workers. With this method, the `data` element will not be jsonified.
+The same as [post](#post) except that the event will be local to the worker process,
+it will not be broadcasted to other workers. With this method, the `data` element
+will not be jsonified.
 
-Before returning, it will call [poll](#poll) to first handle the posted event and then handle all
-other newly posted events. Check the return value to make sure it completed, see `poll`.
-
-The return value will be the result from `poll`.
+The return value will be `true` when the event was successfully posted or
+`nil + error` in case of failure.
 
 [Back to TOC](#table-of-contents)
 
@@ -451,8 +448,11 @@ History
 
 Note: please update version number in the code when releasing a new version!
 
-1.1.0, unreleased
+2.0.0, unreleased
 
+- BREAKING: the `post` function does not call `poll` anymore, making all events
+  asynchronous. When an immediate treatment to an event is needed an explicit
+  call to `poll` must be done.
 - fix: improved logging in case of failure to write to shm (add payload size
   for troubleshooting purposes)
 - fix: do not log the payload anymore, since it might expose sensitive data
