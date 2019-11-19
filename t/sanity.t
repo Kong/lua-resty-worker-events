@@ -123,6 +123,7 @@ init_worker_by_lua '
                 ", data=", data)
             end)
     local ok, err = we.configure{
+        interval = 0.1,
         shm = "worker_events",
     }
     if not ok then
@@ -135,12 +136,13 @@ init_worker_by_lua '
     location = /t {
         access_log off;
         content_by_lua '
-            ngx.sleep(1)
+            ngx.sleep(0.1)
             local we = require "resty.worker.events"
             we.post("content_by_lua","request1","01234567890")
             we.post_local("content_by_lua","request2","01234567890")
             we.post("content_by_lua","request3","01234567890")
             ngx.print("hello world\\n")
+            ngx.sleep(0.2) -- wait for the polling interval
 
         ';
     }
@@ -159,10 +161,10 @@ dropping event: waiting for event data timed out
 --- grep_error_log_out eval
 qr/^worker-events: handling event; source=resty-worker-events, event=started, pid=\d+
 worker-events: handler event;  source=resty-worker-events, event=started, pid=\d+, data=nil
-worker-events: handling event; source=content_by_lua, event=request1, pid=\d+
-worker-events: handler event;  source=content_by_lua, event=request1, pid=\d+, data=01234567890
 worker-events: handling event; source=content_by_lua, event=request2, pid=nil
 worker-events: handler event;  source=content_by_lua, event=request2, pid=nil, data=01234567890
+worker-events: handling event; source=content_by_lua, event=request1, pid=\d+
+worker-events: handler event;  source=content_by_lua, event=request1, pid=\d+, data=01234567890
 worker-events: handling event; source=content_by_lua, event=request3, pid=\d+
 worker-events: handler event;  source=content_by_lua, event=request3, pid=\d+, data=01234567890$/
 --- timeout: 6
@@ -193,6 +195,7 @@ init_worker_by_lua '
                 ", data=", tostring(data))
             end)
     local ok, err = we.configure{
+        interval = 0.1,
         shm = "worker_events",
     }
 
@@ -221,7 +224,7 @@ init_worker_by_lua '
         access_log off;
         content_by_lua '
             local cjson = require("cjson.safe").new()
-            ngx.sleep(1)
+            ngx.sleep(0.1)
             local we = require "resty.worker.events"
             we.post("content_by_lua","request1","01234567890")
             we.post_local("content_by_lua","request2","01234567890")
@@ -232,6 +235,7 @@ init_worker_by_lua '
 
             we.post("content_by_lua","request3","01234567890")
             ngx.print("hello world\\n")
+            ngx.sleep(0.2) -- wait for the polling interval
 
         ';
     }
@@ -256,10 +260,10 @@ worker-events: handling event; source=hello, event=2, pid=123456
 worker-events: handler event;  source=hello, event=2, pid=123456, data=there-2
 worker-events: handling event; source=hello, event=3, pid=123456
 worker-events: handler event;  source=hello, event=3, pid=123456, data=there-3
-worker-events: handling event; source=content_by_lua, event=request1, pid=\d+
-worker-events: handler event;  source=content_by_lua, event=request1, pid=\d+, data=01234567890
 worker-events: handling event; source=content_by_lua, event=request2, pid=nil
 worker-events: handler event;  source=content_by_lua, event=request2, pid=nil, data=01234567890
+worker-events: handling event; source=content_by_lua, event=request1, pid=\d+
+worker-events: handler event;  source=content_by_lua, event=request1, pid=\d+, data=01234567890
 worker-events: handling event; source=hello, event=4, pid=123456
 worker-events: handler event;  source=hello, event=4, pid=123456, data=there-4
 worker-events: handling event; source=content_by_lua, event=request3, pid=\d+
@@ -293,10 +297,10 @@ init_worker_by_lua '
             end)
     local ok, err = we.configure{
         shm = "worker_events",
-        interval = 1,
-        timeout = 2,
-        wait_max = 0.5,
-        wait_interval = 0.200,
+        interval = 0.1,
+        timeout = 0.2,
+        wait_max = 0.05,
+        wait_interval = 0.0200,
     }
 
     local cjson = require("cjson.safe").new()
@@ -312,7 +316,7 @@ init_worker_by_lua '
         access_log off;
         content_by_lua '
             local cjson = require("cjson.safe").new()
-            ngx.sleep(1)
+            ngx.sleep(0.1)
             local we = require "resty.worker.events"
             we.post("content_by_lua","request1","01234567890")
             we.post("content_by_lua","request2","01234567890", true)
@@ -321,6 +325,7 @@ init_worker_by_lua '
 
             we.post("content_by_lua","request3","01234567890")
             ngx.print("hello world\\n")
+            ngx.sleep(0.2) -- wait for the polling interval
 
         ';
     }
@@ -332,7 +337,7 @@ GET /t
 hello world
 --- no_error_log
 [alert]
---- grep_error_log eval: qr/worker-events: .*|worker-events: dropping event; waiting for event data timed out.*/
+--- grep_error_log eval: qr/worker-events: .*|worker-events: dropping event; waiting for event data timed out*/
 --- grep_error_log_out eval
 qr/^worker-events: handling event; source=resty-worker-events, event=started, pid=\d+
 worker-events: handler event;  source=resty-worker-events, event=started, pid=\d+, data=nil
@@ -371,7 +376,8 @@ init_worker_by_lua '
                 ", data=", data)
             end)
     local ok, err = we.configure{
-        timeout = 0.4,
+        interval = 0.1,
+        timeout = 0.04,
         shm = "worker_events",
     }
     if not ok then
@@ -384,16 +390,17 @@ init_worker_by_lua '
     location = /t {
         access_log off;
         content_by_lua '
-            ngx.sleep(1)
+            ngx.sleep(0.1)
             local we = require "resty.worker.events"
             we.post("content_by_lua","request1","01234567890")
             we.post("content_by_lua","request2","01234567890", "unique_value")
             we.post("content_by_lua","request3","01234567890", "unique_value")
-            ngx.sleep(0.5) -- wait for unique timeout to expire
+            ngx.sleep(0.1) -- wait for unique timeout to expire
             we.post("content_by_lua","request4","01234567890", "unique_value")
             we.post("content_by_lua","request5","01234567890", "unique_value")
             we.post("content_by_lua","request6","01234567890")
             ngx.print("hello world\\n")
+            ngx.sleep(0.2) -- wait for the polling interval
 
         ';
     }
@@ -448,6 +455,7 @@ init_worker_by_lua '
                 ", data=", data)
             end)
     local ok, err = we.configure{
+        interval = 0.1,
         shm = "worker_events",
     }
     if not ok then
@@ -460,13 +468,14 @@ init_worker_by_lua '
     location = /t {
         access_log off;
         content_by_lua '
-            ngx.sleep(1)
+            ngx.sleep(0.1)
             local we = require "resty.worker.events"
             we.post("content_by_lua","request1","01234567890")
             assert(ngx.shared.worker_events:add("events-one:unique_value", 666))
             we.post("content_by_lua","request2","01234567890", "unique_value")
             we.post("content_by_lua","request3","01234567890")
             ngx.print("hello world\\n")
+            ngx.sleep(0.2) -- wait for the polling interval
         ';
     }
 
@@ -527,6 +536,7 @@ init_worker_by_lua '
     we.register(ngx.cb_event3,  "content_by_lua", "request3")
 
     local ok, err = we.configure{
+        interval = 0.1,
         shm = "worker_events",
     }
     if not ok then
@@ -539,28 +549,33 @@ init_worker_by_lua '
     location = /t {
         access_log off;
         content_by_lua '
-            ngx.sleep(1)
+            ngx.sleep(0.1)
             local we = require "resty.worker.events"
             we.post("content_by_lua","request1","123")
             we.post("content_by_lua","request2","123")
             we.post("content_by_lua","request3","123")
+            ngx.sleep(0.2) -- wait for the polling interval
             we.unregister(ngx.cb_global)
             we.post("content_by_lua","request1","124")
             we.post("content_by_lua","request2","124")
             we.post("content_by_lua","request3","124")
+            ngx.sleep(0.2) -- wait for the polling interval
             we.unregister(ngx.cb_source,  "content_by_lua")
             we.post("content_by_lua","request1","125")
             we.post("content_by_lua","request2","125")
             we.post("content_by_lua","request3","125")
+            ngx.sleep(0.2) -- wait for the polling interval
             we.unregister(ngx.cb_event12, "content_by_lua", "request1", "request2")
             we.post("content_by_lua","request1","126")
             we.post("content_by_lua","request2","126")
             we.post("content_by_lua","request3","126")
+            ngx.sleep(0.2) -- wait for the polling interval
             we.unregister(ngx.cb_event3,  "content_by_lua", "request3")
             we.post("content_by_lua","request1","127")
             we.post("content_by_lua","request2","127")
             we.post("content_by_lua","request3","127")
             ngx.print("hello world\\n")
+            ngx.sleep(0.2) -- wait for the polling interval
 
         ';
     }
@@ -613,7 +628,7 @@ worker-events: handler event;  source=content_by_lua, event=request3, pid=\d+, d
 worker-events: handling event; source=content_by_lua, event=request1, pid=\d+
 worker-events: handling event; source=content_by_lua, event=request2, pid=\d+
 worker-events: handling event; source=content_by_lua, event=request3, pid=\d+$/
---- timeout: 6
+--- timeout: 15
 
 
 
@@ -644,9 +659,11 @@ init_worker_by_lua '
             ngx.shared.worker_events:flush_all()
             local we = require "resty.worker.events"
             local ok, err = we.configure{
+                interval = 0.1,
+                interval = 0.01,
                 shm = "worker_events",
             }
-            ngx.sleep(1)
+            ngx.sleep(0.1)
 
             local count = 0
 
@@ -676,6 +693,7 @@ init_worker_by_lua '
             we.post("content_by_lua","request1","123")
             we.post("content_by_lua","request2","123")
             we.post("content_by_lua","request3","123")
+            ngx.sleep(0.2) -- wait for the polling interval
             ngx.say("before GC:", count)
 
             cb = nil
@@ -686,6 +704,7 @@ init_worker_by_lua '
             we.post("content_by_lua","request1","123")
             we.post("content_by_lua","request2","123")
             we.post("content_by_lua","request3","123")
+            ngx.sleep(0.2) -- wait for the polling interval
             ngx.say("after GC:", count) -- 0
 
         ';
@@ -728,6 +747,7 @@ init_worker_by_lua '
             ngx.shared.worker_events:flush_all()
             local we = require "resty.worker.events"
             local ok, err = we.configure{
+                interval = 0.1,
                 shm = "worker_events",
             }
             local error_func = function()
@@ -741,6 +761,7 @@ init_worker_by_lua '
             -- non-serializable test data containing a function value
             -- use "nil" as data, reproducing issue #5
             we.post("content_by_lua","test_event", nil)
+            ngx.sleep(0.2) -- wait for the polling interval
 
             ngx.say("ok")
         ';
@@ -782,6 +803,7 @@ init_worker_by_lua '
             ngx.shared.worker_events:flush_all()
             local we = require "resty.worker.events"
             local ok, err = we.configure{
+                interval = 0.1,
                 shm = "worker_events",
             }
 
@@ -797,6 +819,7 @@ init_worker_by_lua '
 
             we.register(test_callback)
             we.post("content_by_lua","test_event")
+            ngx.sleep(0.2) -- wait for the polling interval
 
             ngx.say("ok")
         ';
@@ -850,11 +873,11 @@ init_worker_by_lua '
             end
 
             local ok, err = we.post("source", "event", ("y"):rep(1024):rep(500))
-            ngx.say(ok or err)
+            ngx.say(err == nil and "event posted")
         ';
     }
 
 --- request
 GET /t
 --- response_body
-done
+event posted

@@ -257,7 +257,8 @@ end
 -- @param data the data for the event, anything as long as it can be used with cjson
 -- @param unique a unique identifier for this event, providing it will make only 1
 -- worker execute the event
--- @return results from the call to `poll`, or nil+error
+-- @return true if the event was successfully posted, nil+error if there was an
+-- error posting the event
 _M.post = function(source, event, data, unique)
 
   if type(source) ~= "string" or source == "" then
@@ -272,15 +273,16 @@ _M.post = function(source, event, data, unique)
     err = 'failed posting event "'..event..'" by "'..
           source..'"; '..tostring(err)
     log(ERR, "worker-events: ", err)
-    return success, err
+    return nil, err
   end
 
-  return _M.poll()
+  return true
 end
 
--- the same as post. But the event will only be handled in the worker
+-- Similar to `post`, but synchronous. The event will be immediately executed
+-- and will not require a call to `poll`. It will only be handled in the worker
 -- it was posted from, it will not be broadcasted to other worker processes.
--- @return results from the call to `poll`, or nil+error
+-- @return `true` or nil+error
 _M.post_local = function(source, event, data)
   if type(source) ~= "string" or source == "" then
     return nil, "source is required"
@@ -291,7 +293,7 @@ _M.post_local = function(source, event, data)
 
   do_event(source, event, data, nil)
 
-  return _M.poll()
+  return true
 end
 
 -- flag to indicate we're already in a polling loop
