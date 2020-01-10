@@ -107,6 +107,7 @@ local _callbacks = autotable(2)
 -- eventsource-sub-table has the same structure, except the hash part contains
 -- not 'eventsource', but 'event' specific handlers, no more sub tables
 
+local local_event_queue = {}
 
 local _M = {
   _VERSION = '0.3.3',
@@ -250,8 +251,7 @@ local function do_event_json(id, json)
   return do_event(d.source, d.event, d.data, d.pid)
 end
 
--- Posts a new event. Also immediately handles all events up to and including
--- the newly posted event.
+-- Posts a new event.
 -- @param source string identifying the event source
 -- @param event string identifying the event name
 -- @param data the data for the event, anything as long as it can be used with cjson
@@ -279,8 +279,7 @@ _M.post = function(source, event, data, unique)
   return true
 end
 
--- Similar to `post`, but synchronous. The event will be immediately executed
--- and will not require a call to `poll`. It will only be handled in the worker
+-- Similar to `post`. The event will only be handled in the worker
 -- it was posted from, it will not be broadcasted to other worker processes.
 -- @return `true` or nil+error
 _M.post_local = function(source, event, data)
@@ -291,7 +290,11 @@ _M.post_local = function(source, event, data)
     return nil, "event is required"
   end
 
-  do_event(source, event, data, nil)
+  local_event_queue[#local_event_queue + 1] = {
+    source = source,
+    event = event,
+    data = data,
+  }
 
   return true
 end
@@ -307,6 +310,20 @@ _M.poll = function()
     -- handler (by posting an event from an event handler for example)
     -- so we cannot handle it here right now.
     return "recursive"
+  end
+
+  while #local_event_queue > 0 do
+    -- exchange queue with a new one, so we can post new ones while
+    -- dealing with existing ones
+    local queue = local_event_queue
+    local_event_queue = {}
+
+    -- deal with local events
+    for i, data in ipairs(queue) do
+      _busy_polling = true -- need to flag to make sure the eventhandlers do not re-enter
+      do_event(data.source, data.event, data.data, nil)
+      _busy_polling = nil
+    end
   end
 
   local event_id, err = get_event_id()

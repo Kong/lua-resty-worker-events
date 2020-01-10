@@ -436,7 +436,7 @@ Copyright and License
 
 This module is licensed under the [Apache 2.0 license](https://opensource.org/licenses/Apache-2.0).
 
-Copyright (C) 2016-2019, by Thijs Schreijer, Kong Inc.
+Copyright (C) 2016-2020, by Thijs Schreijer, Kong Inc.
 
 All rights reserved.
 
@@ -453,6 +453,9 @@ Note: please update version number in the code when releasing a new version!
 - BREAKING: the `post` function does not call `poll` anymore, making all events
   asynchronous. When an immediate treatment to an event is needed an explicit
   call to `poll` must be done.
+- BREAKING: the `post_local` function does not immediately execute the
+  event anymore, making all local events asynchronous. When an immediate
+  treatment to an event is needed an explicit call to `poll` must be done.
 - fix: improved logging in case of failure to write to shm (add payload size
   for troubleshooting purposes)
 - fix: do not log the payload anymore, since it might expose sensitive data
