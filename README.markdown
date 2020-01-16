@@ -448,7 +448,7 @@ History
 
 Note: please update version number in the code when releasing a new version!
 
-2.0.0, unreleased
+### 2.0.0, unreleased
 
 - BREAKING: the `post` function does not call `poll` anymore, making all events
   asynchronous. When an immediate treatment to an event is needed an explicit
@@ -462,7 +462,7 @@ Note: please update version number in the code when releasing a new version!
   through the logs
 - change: updated `shm_retries` default to 999
 
-1.0.0, 18-July-2019
+### 1.0.0, 18-July-2019
 
 - BREAKING: the return values from `poll` (and hence also `post` and `post_local`)
   changed to be more lua-ish, to be truthy when all is well.
@@ -470,11 +470,11 @@ Note: please update version number in the code when releasing a new version!
   fragmentation in the shm when posting events.
 - fix: fixed two typos in variable names (edge cases)
 
-0.3.3, 8-May-2018
+### 0.3.3, 8-May-2018
 
 - fix: timeouts in init phases, by removing timeout setting, see issue #9
 
-0.3.2, 11-Apr-2018
+### 0.3.2, 11-Apr-2018
 
 - change: add a stacktrace to handler errors
 - fix: failing error handler if value was non-serializable, see issue #5
