@@ -156,8 +156,8 @@ How to prevent problems:
   `interval` (see `configure`).
 * `no memory` errors *cannot* be resolved by making the SHM bigger. The only way
   to resolve those is by increasing the `shm_retries` option passed to
-  `configure`. This is because the error is due to fragmentation and not a lack
-  of memory.
+  `configure` (which already has a high default).
+  This is because the error is due to fragmentation and not a lack of memory.
 * the `waiting for event data timed out` error happens if event data gets
   evicted before all the workers got to deal with it. This can happen if
   there is a burst of (large-payload) events. To resolve these:
@@ -309,9 +309,8 @@ are available.
 
 The return value will be `"done"` when it handled all events, `"recursive"` if it was
 already in a polling-loop, or `nil + error` if something went wrong.
-The `"recursive"` result happens when posting an event from an eventhandler. The
-eventhandler was called from `poll`, and when posting an event, the post methods will
-also call `poll` after posting the event, causing a loop. The `"recursive"` result simply
+The `"recursive"` result happens when the current running code was invoked by a callback, and
+tries to call `poll` again. The `"recursive"` result simply
 means that the event was successfully posted, but not handled yet, due to other
 events ahead of it that need to be handled first.
 
