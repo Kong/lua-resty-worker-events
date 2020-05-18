@@ -1,6 +1,6 @@
 [![Build Status](https://travis-ci.org/Kong/lua-resty-worker-events.svg?branch=master)](https://travis-ci.org/Kong/lua-resty-worker-events)
 
-lua-resty-worker-events 
+lua-resty-worker-events
 =======================
 
 Inter process events for Nginx worker processes
@@ -46,7 +46,7 @@ http {
     # the size depends on the number of event to handle:
     lua_shared_dict process_events 1m;
 
-    init_by_lua_block {
+    init_worker_by_lua_block {
         local ev = require "resty.worker.events"
 
         local handler = function(data, event, source, pid)
