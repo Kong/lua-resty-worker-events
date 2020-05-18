@@ -1,4 +1,6 @@
-lua-resty-worker-events
+[![Build Status](https://travis-ci.org/Kong/lua-resty-worker-events.svg?branch=master)](https://travis-ci.org/Kong/lua-resty-worker-events)
+
+lua-resty-worker-events 
 =======================
 
 Inter process events for Nginx worker processes
