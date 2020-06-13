@@ -71,6 +71,7 @@ qr/^worker-events: handler event;  source=content_by_lua, event=request1, pid=\d
 worker-events: handler event;  source=content_by_lua, event=request1, pid=\d+, data=01234567890
 worker-events: handler event;  source=content_by_lua, event=request1, pid=\d+, data=01234567890
 worker-events: handler event;  source=content_by_lua, event=request1, pid=\d+, data=01234567890$/
+--- wait: 1
 
 
 
@@ -124,3 +125,4 @@ dropping event: waiting for event data timed out
 --- grep_error_log eval: qr/worker-events: handler event.*, data=01234567890/
 --- grep_error_log_out eval
 qr/^worker-events: handler event;  source=content_by_lua, event=request1, pid=nil, data=01234567890$/
+--- wait: 1
