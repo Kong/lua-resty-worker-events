@@ -12,6 +12,7 @@ local cjson = require("cjson.safe").new()
 local get_pid = ngx.worker.pid
 local now = ngx.now
 local sleep = ngx.sleep
+local exiting = ngx.worker.exiting
 local traceback = debug.traceback
 local assert = assert
 local select = select
@@ -406,30 +407,48 @@ _M.poll = function()
   return _M.poll()
 end
 
--- executes a polling loop, and reschedules the polling timer
+-- executes a polling loop
 local do_timer
 do_timer = function(premature)
-  if premature then
-    _M.post(_M.events._source, _M.events.stopping)
-  end
+  while true do
+    if premature then
+      _M.post(_M.events._source, _M.events.stopping)
+    end
 
-  local ok, err = _M.poll()
-  if not ok then
-    log(ERR, "worker-events: timer-poll returned: ", err)
-  end
-
-  if _interval ~= 0 and not premature then
-    ok, err = new_timer(_interval, do_timer)
+    local ok, err = _M.poll()
     if not ok then
-      if err == "process exiting" then
-        _M.post(_M.events._source, _M.events.stopping)
+      log(ERR, "worker-events: timer-poll returned: ", err)
+    end
+
+    if _interval ~= 0 and not premature then
+      if _interval <= 1 then
+        sleep(_interval)
+        premature = exiting()
+
+      else
+        local sleep_left = _interval
+        while sleep_left > 0 do
+          if sleep_left <= 1 then
+            sleep(sleep_left)
+            premature = exiting()
+            break
+          end
+
+          sleep(1)
+
+          premature = exiting()
+          if premature then
+            break
+          end
+
+          sleep_left = sleep_left - 1
+        end
       end
-      err = "failed to create timer: " .. tostring(err)
-      log(ERR, "worker-events: ", err)
-      return nil, err
+
+    else
+      return true
     end
   end
-  return true
 end
 
 -- @param mode either "weak" or "strong"
@@ -656,8 +675,16 @@ _M.configure = function(opts)
 
   if not old_interval then
     -- haven't got a timer setup yet, must create one
-    local success, err = do_timer()
-    if not success then return success, err end
+    local success, err = new_timer(0, do_timer)
+    if not success then
+      if err == "process exiting" then
+        _M.post(_M.events._source, _M.events.stopping)
+      end
+      err = "failed to create timer: " .. tostring(err)
+      log(ERR, "worker-events: ", err)
+      return nil, err
+    end
+
   else
     _M.poll()
   end
