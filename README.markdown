@@ -24,7 +24,6 @@ Table of Contents
     * [register_weak](#register_weak)
     * [unregister](#unregister)
 * [Installation](#installation)
-* [TODO](#todo)
 * [Bugs and Patches](#bugs-and-patches)
 * [Author](#author)
 * [Copyright and License](#copyright-and-license)
@@ -409,13 +408,6 @@ Nothing special is required, install like any other pure Lua module. Just make
 sure its location is in the module search path.
 
 [Back to TOC](#table-of-contents)
-
-TODO
-====
-
-[Back to TOC](#table-of-contents)
-
-* activate and implement the first test, after fixing the "stopping" event
 
 
 Bugs and Patches
