@@ -22,11 +22,15 @@ local pairs = pairs
 local setmetatable = setmetatable
 local getmetatable = getmetatable
 local next = next
+local min = math.min
 
 -- event keys to shm
 local KEY_LAST_ID = "events-last"         -- ID of last event posted
 local KEY_DATA    = "events-data:"        -- serialized event json data
 local KEY_ONE     = "events-one:"         -- key for 'one' events check
+
+-- constants
+local SLEEP_INTERVAL = 0.5 -- sleep step in the timer loop (in seconds)
 
 -- globals as upvalues (module is intended to run once per worker process)
 local _dict           -- the shared dictionary to use
@@ -408,8 +412,7 @@ _M.poll = function()
 end
 
 -- executes a polling loop
-local do_timer
-do_timer = function(premature)
+local function do_timer(premature)
   while true do
     if premature then
       _M.post(_M.events._source, _M.events.stopping)
@@ -420,33 +423,19 @@ do_timer = function(premature)
       log(ERR, "worker-events: timer-poll returned: ", err)
     end
 
-    if _interval ~= 0 and not premature then
-      if _interval <= 1 then
-        sleep(_interval)
-        premature = exiting()
+    if _interval == 0 or premature then
+      break  -- exit overall timer loop
+    end
 
-      else
-        local sleep_left = _interval
-        while sleep_left > 0 do
-          if sleep_left <= 1 then
-            sleep(sleep_left)
-            premature = exiting()
-            break
-          end
+    local sleep_left = _interval
+    while sleep_left > 0 do
+      sleep(min(sleep_left, SLEEP_INTERVAL))
+      sleep_left = sleep_left - SLEEP_INTERVAL
 
-          sleep(1)
-
-          premature = exiting()
-          if premature then
-            break
-          end
-
-          sleep_left = sleep_left - 1
-        end
+      if exiting() then
+        premature = true
+        break  -- exit sleep loop only
       end
-
-    else
-      return true
     end
   end
 end

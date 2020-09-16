@@ -462,6 +462,7 @@ Note: please update version number in the code when releasing a new version!
 - fix: do not log the payload anymore, since it might expose sensitive data
   through the logs
 - change: updated `shm_retries` default to 999
+- change: changed timer loop to a sleep-loop (performance)
 
 ### 1.0.0, 18-July-2019
 
