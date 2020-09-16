@@ -341,7 +341,8 @@ _M.poll = function()
   end
 
   local event_id, err = get_event_id()
-  if event_id == _last_event then
+  if event_id <= _last_event then
+    -- if event_id < _last_event then a reload is executed whilst clearing the SHM
     return "done"
   end
 
