@@ -125,7 +125,7 @@ local _callbacks = autotable(2)
 local local_event_queue = {}
 
 local _M = {
-  _VERSION = '0.3.3',
+  _VERSION = '2.0.0',
 }
 
 

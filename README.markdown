@@ -439,9 +439,17 @@ All rights reserved.
 History
 =======
 
-Note: please update version number in the code when releasing a new version!
+### Releasing new versions
 
-### 2.0.0, unreleased
+- make sure changelog below is up-to-date
+- update version number in the code
+- create a new rockspec in `./rockspecs`
+- commit with message `release x.x.x`
+- tag the commit as `x.x.x`
+- push commit and tags
+- upload to luarocks
+
+### 2.0.0, 16-September-2020
 
 - BREAKING: the `post` function does not call `poll` anymore, making all events
   asynchronous. When an immediate treatment to an event is needed an explicit
