@@ -449,6 +449,8 @@ Note: please update version number in the code when releasing a new version!
 - BREAKING: the `post_local` function does not immediately execute the
   event anymore, making all local events asynchronous. When an immediate
   treatment to an event is needed an explicit call to `poll` must be done.
+- fix: prevent spinning at 100% CPU when during a reload the event-shm is
+  cleared
 - fix: improved logging in case of failure to write to shm (add payload size
   for troubleshooting purposes)
 - fix: do not log the payload anymore, since it might expose sensitive data
