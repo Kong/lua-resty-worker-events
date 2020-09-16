@@ -455,6 +455,7 @@ Note: please update version number in the code when releasing a new version!
   through the logs
 - change: updated `shm_retries` default to 999
 - change: changed timer loop to a sleep-loop (performance)
+- fix: when re-configuring make sure callbacks table is initialized
 
 ### 1.0.0, 18-July-2019
 
