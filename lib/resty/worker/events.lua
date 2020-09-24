@@ -619,8 +619,8 @@ _M.configure = function(opts)
   if type(interval) ~= "number" and interval ~= nil then
     return nil, 'optional "interval" option must be a number'
   end
-  if interval <= 0 then
-    return nil, '"interval" must be greater than 0'
+  if interval < 0 then
+    return nil, '"interval" must be greater than or equal to 0'
   end
 
   local wait_interval = opts.wait_interval or (_wait_interval or
@@ -629,7 +629,7 @@ _M.configure = function(opts)
     return nil, 'optional "wait_interval" option must be a number'
   end
   if wait_interval < 0 then
-    return nil, '"interval" must be greater than or equal to 0'
+    return nil, '"wait_interval" must be greater than or equal to 0'
   end
 
   local wait_max = opts.wait_max or (_wait_max or DEFAULT_WAIT_MAX)
