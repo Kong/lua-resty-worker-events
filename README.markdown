@@ -405,6 +405,11 @@ History
 
 Note: please update version number in the code when releasing a new version!
 
+1.1.0, 23-Dec-2020
+
+- feature: the polling loop now runs forever, sleeping for 0.5 seconds between
+  runs, avoiding to create new timers on every step.
+
 1.0.0, 18-July-2019
 
 - BREAKING: the return values from `poll` (and hence also `post` and `post_local`)
