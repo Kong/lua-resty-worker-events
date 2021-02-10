@@ -308,8 +308,7 @@ are available.
 
 The return value will be `"done"` when it handled all events, `"recursive"` if it was
 already in a polling-loop, or `nil + error` if something went wrong.
-The `"recursive"` result happens when the current running code was invoked by a callback, and
-tries to call `poll` again. The `"recursive"` result simply
+The `"recursive"` result simply
 means that the event was successfully posted, but not handled yet, due to other
 events ahead of it that need to be handled first.
 
