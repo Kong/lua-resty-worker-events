@@ -466,6 +466,11 @@ History
 - change: changed timer loop to a sleep-loop (performance)
 - fix: when re-configuring make sure callbacks table is initialized
 
+### 1.1.0, 23-Dec-2020 (maintenance release)
+
+- feature: the polling loop now runs forever, sleeping for 0.5 seconds between
+  runs, avoiding to create new timers on every step.
+
 ### 1.0.0, 18-July-2019
 
 - BREAKING: the return values from `poll` (and hence also `post` and `post_local`)
