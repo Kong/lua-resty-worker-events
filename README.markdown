@@ -448,6 +448,10 @@ History
 - push commit and tags
 - upload to luarocks
 
+### 2.0.1, 28-June-2021
+
+- fix: possible deadlock in the 'init phase
+
 ### 2.0.0, 16-September-2020
 
 - BREAKING: the `post` function does not call `poll` anymore, making all events
