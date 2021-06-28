@@ -391,7 +391,11 @@ _M.poll = function()
         -- by looping until it hits the time-out, or the data is retrieved
         _busy_polling = true  -- need to flag because `sleep` will yield control
                               -- and another coroutine might re-enter
-        pcall(sleep, _wait_interval)
+        if not pcall(sleep, _wait_interval) then
+          -- `pcall` failed, so this is a non-yieldable phase to prevent a deadlock we
+          -- must force update the cached time reported by `ngx.now`.
+          ngx.update_time()
+        end
         _busy_polling = nil
         data, err = get_event_data(_last_event - count + idx)
       end
