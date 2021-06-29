@@ -326,8 +326,7 @@ local _busy_polling
 _M.poll = function()
   if _busy_polling then
     -- we're probably calling the `poll` method from an event
-    -- handler (by posting an event from an event handler for example)
-    -- so we cannot handle it here right now.
+    -- handler so we cannot handle it here right now.
     return "recursive"
   end
 
