@@ -290,7 +290,7 @@ _M.post = function(source, event, data, unique)
   if not success then
     err = 'failed posting event "' .. event .. '" by "' ..
           source .. '"; ' .. tostring(err)
-    log(ERR, "worker-events: ", err)
+    log(ERR, "worker-events: ", debug.traceback(err))
     return nil, err
   end
 
