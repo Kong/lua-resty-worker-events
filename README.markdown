@@ -448,6 +448,7 @@ History
 
 ### unreleased
 
+- chore: remove redundant type checking of unique_timeout.
 - chore: add stacktrace to `post` errors for better debug information.
 
 ### 2.0.1, 28-June-2021
