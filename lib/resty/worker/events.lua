@@ -611,7 +611,7 @@ _M.configure = function(opts)
 
   local unique_timeout = opts.timeout or
                          (_unique_timeout or DEFAULT_UNIQUE_TIMEOUT)
-  if type(unique_timeout) ~= "number" and unique_timeout ~= nil then
+  if type(unique_timeout) ~= "number" then
     return nil, 'optional "timeout" option must be a number'
   end
   if unique_timeout <= 0 then
